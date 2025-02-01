@@ -59,8 +59,8 @@ services:
       context: .
       dockerfile: server/Dockerfile
 
-    ports:
-      - "${FASTAPI_PORT:-8000}:8000"
+    # ports:
+    #   - "${FASTAPI_PORT:-8000}:8000"
 
     volumes:
       # Map local files to the container for live updates (useful for development)

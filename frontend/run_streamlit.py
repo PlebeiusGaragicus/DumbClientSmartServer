@@ -53,22 +53,14 @@ def main():
     if "agents" not in st.session_state:
         st.session_state.agents = get_agents()
 
-    with st.sidebar:
-        st.write(st.session_state.agents)
-
-    # Create agent selection dropdown
-    # agent_ids = [agent["data"]["id"] for agent in st.session_state.agents]
     agent_names = [agent["data"]["name"] for agent in st.session_state.agents]
-    
-    col1, col2 = st.columns([4, 1])
-    with col1:
-        selected_agent_name = st.radio(
-            "Select an Agent",
-            options=agent_names,
-            horizontal=True,
-            label_visibility="collapsed"
-        )
-    
+    selected_agent_name = st.radio(
+        "Select an Agent",
+        options=agent_names,
+        horizontal=True,
+        label_visibility="collapsed"
+    )
+
     # Map display name back to id
     selected_agent = next(agent["data"]["id"] 
                         for agent in st.session_state.agents 
@@ -76,21 +68,11 @@ def main():
 
     # Get the selected agent's data and schema
     agent_data = next(a for a in st.session_state.agents if a["data"]["id"] == selected_agent)
-    
-    # Display agent info
-    # with st.container(border=True):
-    with st.expander("Agent Info", expanded=False):
-        display_agent_info(agent_data["data"])
 
     # Get the schemas
     input_schema = agent_data["schema"]["input"]
     config_schema = agent_data["schema"]["config"]
     schema_defs = agent_data["schema"]
-    
-    # if st.checkbox("Debug: Show Schema"):
-    #     st.write("Schema:", schema_defs)
-    #     st.write("Input Schema:", input_schema)
-    #     st.write("Config Schema:", config_schema)
 
     # Create both input and config models
     InputModel = create_dynamic_model(
@@ -125,10 +107,14 @@ def main():
     if "show_config_dialog" not in st.session_state:
         st.session_state.show_config_dialog = False
 
-    # Add configuration button in the second column
-    with col2:
-        if st.button("⚙️ Configure"):
+    with st.sidebar:
+        if st.button("⚙️ Configure", use_container_width=True):
             show_config_dialog(selected_agent, ConfigModel)
+
+    # Display agent info
+    with st.sidebar:
+        with st.container(border=True):
+            display_agent_info(agent_data["data"])
 
     # Create the input form
     form_key = f"agent_form_{selected_agent}"

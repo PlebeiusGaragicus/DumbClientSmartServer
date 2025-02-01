@@ -17,14 +17,14 @@ from graphs import AGENTS
 
 
 # Configure CORS
-# app.add_middleware(
-#     CORSMiddleware,
-#     # allow_origins=["*"], # USE FOR DEVELOPMENT
-#     allow_origins=["http://localhost:8501"], #TODO Fix this for production
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
+app.add_middleware(
+    CORSMiddleware,
+    # allow_origins=["*"], # USE FOR DEVELOPMENT
+    allow_origins=["http://localhost:8501"], #TODO Fix this for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/health")
 async def health_check():
