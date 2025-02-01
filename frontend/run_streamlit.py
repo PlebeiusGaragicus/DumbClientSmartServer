@@ -31,12 +31,26 @@ def show_config_dialog(selected_agent: str, ConfigModel: Any) -> None:
     config_key = f"config_form_{selected_agent}"
     saved_config = st.session_state.get(f"config_{selected_agent}")
     
+    # Debug output
+    st.write("### Config Dialog Debug")
+    st.write("ConfigModel:", ConfigModel)
+    st.write("ConfigModel fields:", ConfigModel.model_fields)
+    st.write("Saved config:", saved_config)
+    if saved_config:
+        st.write("Saved config type:", type(saved_config))
+        if hasattr(saved_config, "model_dump"):
+            st.write("Saved config dump:", saved_config.model_dump())
+    
     # Convert dict to model instance if needed
     if isinstance(saved_config, dict):
         saved_config = ConfigModel(**saved_config)
+        st.write("Converted config:", saved_config)
+        st.write("Converted config type:", type(saved_config))
     
     # Use saved config or create new instance
     model_instance = saved_config if saved_config else ConfigModel()
+    st.write("Model instance:", model_instance)
+    st.write("Model instance type:", type(model_instance))
     
     config_data = pydantic_form(
         key=config_key,
@@ -103,6 +117,12 @@ def main():
         input_schema=config_schema,
         schema_defs=schema_defs
     )
+
+    # Debug output
+    st.write("### Config Model Details")
+    st.write("Model schema:", ConfigModel.model_json_schema())
+    st.write("Model fields:", ConfigModel.model_fields)
+    st.write("Model attributes:", [attr for attr in dir(ConfigModel) if not attr.startswith('_')])
 
     # Store config in session state to persist between reruns
     if f"config_{selected_agent}" not in st.session_state:

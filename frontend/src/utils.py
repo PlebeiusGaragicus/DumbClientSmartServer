@@ -1,19 +1,13 @@
 """Utility functions for the Streamlit frontend."""
 
 from enum import Enum
-from typing import Any, Dict, List, Tuple, Type, Union, Literal
-from pydantic import create_model, Field
+from typing import Any, Dict, List, Tuple, Type, Union
+from pydantic import create_model, Field, BaseModel
+
 from .config import BACKEND_URL
 
 def get_agents() -> List[Dict[str, Any]]:
-    """Fetch available agents from the backend.
-    
-    Returns:
-        List[Dict[str, Any]]: List of agent configurations
-    
-    Raises:
-        requests.RequestException: If the backend request fails
-    """
+    """Fetch available agents from the backend."""
     import requests
     try:
         response = requests.get(f"{BACKEND_URL}/agents")
@@ -21,6 +15,14 @@ def get_agents() -> List[Dict[str, Any]]:
         return response.json()["agents"]
     except requests.RequestException as e:
         raise RuntimeError(f"Failed to fetch agents: {str(e)}")
+
+def create_enum_from_schema(enum_values: list, enum_name: str) -> Type[Enum]:
+    """Create an Enum class from a list of values."""
+    # Create enum members dictionary
+    members = {value.upper(): value for value in enum_values}
+    
+    # Create the enum class with the members
+    return Enum(enum_name, members, type=str)
 
 def resolve_schema_ref(ref: str, schema_defs: Dict[str, Any]) -> Dict[str, Any]:
     """Resolve a schema reference to its definition."""
@@ -33,7 +35,7 @@ def create_field_from_schema(field_schema: Dict[str, Any], schema_defs: Dict[str
     field_type: Type = str  # default type
     field_default: Any = ...  # required by default
 
-    # Handle references
+    # Handle references first
     if "$ref" in field_schema:
         ref_schema = resolve_schema_ref(field_schema["$ref"], schema_defs)
         # Merge any overrides from the field schema
@@ -56,7 +58,7 @@ def create_field_from_schema(field_schema: Dict[str, Any], schema_defs: Dict[str
         field_default = field_schema["default"]
     
     # Build field constraints
-    field_metadata = {}
+    field_kwargs = {}
     
     # Copy over all constraints and metadata
     for key in [
@@ -65,52 +67,71 @@ def create_field_from_schema(field_schema: Dict[str, Any], schema_defs: Dict[str
         "ge", "le", "gt", "lt"
     ]:
         if key in field_schema:
-            field_metadata[key] = field_schema[key]
+            field_kwargs[key] = field_schema[key]
     
     # Handle enums
     if "enum" in field_schema:
-        # Create a proper string Enum class
+        # Create an Enum class for this property
         enum_name = field_schema.get("title", "DynamicEnum")
-        enum_values = field_schema["enum"]
-        
-        # Create the Enum class
-        enum_type = type(
-            enum_name,
-            (str, Enum),
-            {v: v for v in enum_values}  # Use the values directly as both key and value
-        )
-        
-        # Convert default to enum instance if present
+        enum_class = create_enum_from_schema(field_schema["enum"], enum_name)
+        field_type = enum_class
         if field_default != ...:
-            field_default = enum_type(field_default)
-        
-        return enum_type, field_default
+            # Find the enum member with this value
+            field_default = next(e for e in enum_class if e.value == field_default)
+        field_kwargs["default"] = field_default
+        return field_type, Field(**field_kwargs)
 
     # Return field type and configuration
-    return field_type, Field(default=field_default, **field_metadata)
+    field_kwargs["default"] = field_default
+    return field_type, Field(**field_kwargs)
 
 def create_dynamic_model(
     agent_name: str,
     input_schema: Dict[str, Any],
     schema_defs: Dict[str, Any]
-) -> Type:
-    """Create a dynamic Pydantic model from the input schema.
+) -> Type[BaseModel]:
+    """Create a dynamic Pydantic model from the input schema."""
+    fields = {}
+    enums = {}
     
-    Args:
-        agent_name (str): Name of the agent
-        input_schema (Dict[str, Any]): Input schema definition
-        schema_defs (Dict[str, Any]): Schema definitions
-        
-    Returns:
-        Type: Generated Pydantic model
-    """
-    model_fields = {}
+    # First, create any enum types defined in $defs
+    defs = input_schema.get("$defs", {})
+    for def_name, def_schema in defs.items():
+        if "enum" in def_schema:
+            enum_class = create_enum_from_schema(def_schema["enum"], def_schema.get("title", def_name))
+            enums[def_name] = enum_class
     
     # Process properties from the input schema
     properties = input_schema.get("properties", {})
     for field_name, field_schema in properties.items():
+        # If this field references an enum we created from $defs, use it
+        if "$ref" in field_schema:
+            ref_name = field_schema["$ref"].split("/")[-1]
+            if ref_name in enums:
+                enum_class = enums[ref_name]
+                field_default = field_schema.get("default", ...)
+                if field_default != ...:
+                    # Find the enum member with this value
+                    field_default = next(e for e in enum_class if e.value == field_default)
+                fields[field_name] = (enum_class, Field(
+                    default=field_default,
+                    description=field_schema.get("description", "")
+                ))
+                continue
+        
+        # Otherwise create field normally
         field_type, field_config = create_field_from_schema(field_schema, schema_defs)
-        model_fields[field_name] = (field_type, field_config)
+        fields[field_name] = (field_type, field_config)
+        
+        # Store enum classes for reference
+        if isinstance(field_type, type) and issubclass(field_type, Enum):
+            enums[field_name] = field_type
     
-    # Create and return the model
-    return create_model(f"{agent_name}_input", **model_fields)
+    # Create the model
+    model = create_model(f"{agent_name}_input", **fields)
+    
+    # Store created enums as class attributes
+    for name, enum_class in enums.items():
+        setattr(model, f"{name}_enum", enum_class)
+    
+    return model
