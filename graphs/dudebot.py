@@ -6,8 +6,6 @@ from enum import Enum
 class InputSchema(BaseModel):
     message: str = Field(
         ...,
-        min_length=1,
-        max_length=1000,
         description="Message to dude-ify"
     )
 
@@ -36,7 +34,6 @@ class ConfigSchema(BaseModel):
     )
     catchphrase: str = Field(
         "Dude!",
-        min_length=1,
-        max_length=50,
+        format="multi-line",
         description="Custom catchphrase to use"
     )
