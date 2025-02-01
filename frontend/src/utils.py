@@ -44,21 +44,30 @@ def create_field_from_schema(field_schema: Dict[str, Any]) -> Tuple[Type, Any]:
     """
     field_type: Type = str  # default type
     field_default: Any = ...  # required by default
-    
-    if field_schema.get("enum"):
+
+    # Handle type mapping
+    type_map = {
+        "string": str,
+        "integer": int,
+        "number": float,
+        "boolean": bool
+    }
+
+    # Get the field type
+    if "type" in field_schema:
+        field_type = type_map.get(field_schema["type"], str)
+
+    # Handle enums
+    if "enum" in field_schema:
         field_type = create_enum_from_schema(field_schema["enum"])
         if "default" in field_schema:
             field_default = field_type(field_schema["default"])
-    elif field_schema.get("type") == "string":
-        field_type = str
-        if "default" in field_schema:
-            field_default = field_schema["default"]
-    elif field_schema.get("type") == "integer":
-        field_type = int
-        if "default" in field_schema:
-            field_default = field_schema["default"]
-    
-    return (field_type, field_default)
+
+    # Handle default values
+    elif "default" in field_schema:
+        field_default = field_schema["default"]
+
+    return field_type, field_default
 
 def create_dynamic_model(
     agent_name: str,
@@ -76,15 +85,11 @@ def create_dynamic_model(
         Type: Generated Pydantic model
     """
     model_fields = {}
-    for field_name, field_schema in input_schema.items():
-        if "$ref" in field_schema:
-            # Handle enum references
-            enum_name = field_schema["$ref"].split("/")[-1]
-            enum_schema = schema_defs[enum_name]
-            field_schema = {**field_schema, "enum": enum_schema["enum"]}
+    
+    # Process properties from the input schema
+    properties = input_schema.get("properties", {})
+    for field_name, field_schema in properties.items():
         model_fields[field_name] = create_field_from_schema(field_schema)
-
-    return create_model(
-        f"{agent_name}Input",
-        **model_fields
-    )
+    
+    # Create and return the model
+    return create_model(f"{agent_name}_input", **model_fields)

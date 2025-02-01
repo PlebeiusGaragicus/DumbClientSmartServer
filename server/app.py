@@ -32,12 +32,23 @@ async def health_check():
 @app.get("/agents")
 async def agents():
     agent_list = []
-    for agent_class in AGENTS.values():
-        agent = agent_class()
-        agent_data = agent.model_dump()
-        agent_schema = agent_class.model_json_schema()
+    for agent in AGENTS:
+        input_schema = agent.input_schema.model_json_schema()
+        config_schema = agent.config_schema.model_json_schema()
+        
+        agent_data = {
+            "id": agent.id,
+            "name": agent.name,
+            "placeholder": agent.placeholder,
+            "info": agent.info,
+            "version": agent.version
+        }
+        
         agent_list.append({
             "data": agent_data,
-            "schema": agent_schema
+            "schema": {
+                "input": input_schema,
+                "config": config_schema
+            }
         })
     return {"agents": agent_list}

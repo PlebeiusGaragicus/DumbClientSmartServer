@@ -21,6 +21,7 @@ services:
     volumes:
       # Map local files to the container for live updates (useful for development)
       # TODO: should this be removed for production?  Likely...
+      - ./frontend/run_streamlit.py:/app/run_streamlit.py
       - ./frontend/src:/app/src
       - ./auth.yaml:/app/auth.yaml
 
@@ -65,6 +66,7 @@ services:
       # Map local files to the container for live updates (useful for development)
       # TODO: should this be removed for production?  Likely...
       - ./server/app.py:/app/app.py
+      - ./graphs:/app/graphs
 
     environment:
       # Avoid output buffering; this line ensures that print() statements are sent directly to the terminal

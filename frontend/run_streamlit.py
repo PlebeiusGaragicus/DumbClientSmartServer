@@ -1,5 +1,6 @@
 """Streamlit frontend for the Agent Chat Interface."""
 
+import traceback
 import streamlit as st
 from streamlit_pydantic import pydantic_form
 from typing import Dict, Any, Optional
@@ -17,66 +18,95 @@ def display_agent_info(info: Dict[str, Any]) -> None:
         info (Dict[str, Any]): Agent information dictionary
     """
     st.write(f"Version: {info['version']}")
-    if info.get('author'):
-        st.write(f"Author: {info['author']}")
-    st.write(f"Description: {info['description']}")
+    st.write(f"Description: {info['info']}")
 
 def main():
+    # Initialize session state for agents if not exists
+    if "agents" not in st.session_state:
+        st.session_state.agents = get_agents()
 
-    try:
-        # Initialize session state for agents if not exists
-        if "agents" not in st.session_state:
-            st.session_state.agents = get_agents()
-        
-        # Create agent selection dropdown
-        agent_ids = [agent["data"]["info"]["id"] for agent in st.session_state.agents]
-        agent_names = [agent["data"]["info"]["display_name"] for agent in st.session_state.agents]
-        
-        selected_agent_name = st.radio(
-            "Select an Agent",
-            options=agent_names,
-            horizontal=True,
-            label_visibility="collapsed"
-        )
+    with st.expander("server agents"):
+        st.write(st.session_state.agents)
 
-        # Map display name back to id
-        selected_agent = next(agent["data"]["info"]["id"] 
-                            for agent in st.session_state.agents 
-                            if agent["data"]["info"]["display_name"] == selected_agent_name)
+    # Create agent selection dropdown
+    agent_ids = [agent["data"]["id"] for agent in st.session_state.agents]
+    agent_names = [agent["data"]["name"] for agent in st.session_state.agents]
+    
+    selected_agent_name = st.radio(
+        "Select an Agent",
+        options=agent_names,
+        horizontal=True,
+        label_visibility="collapsed"
+    )
 
-        # Get the selected agent's data and schema
-        agent_data = next(a for a in st.session_state.agents if a["data"]["info"]["id"] == selected_agent)
-        
-        # Display agent info
-        with st.container(border=True):
-            # st.subheader("Agent Information")
-            display_agent_info(agent_data["data"]["info"])
+    # Map display name back to id
+    selected_agent = next(agent["data"]["id"] 
+                        for agent in st.session_state.agents 
+                        if agent["data"]["name"] == selected_agent_name)
 
-        # Create and display the dynamic form
-        schema_defs = agent_data["schema"]["$defs"]
-        input_schema = schema_defs["InputSchema"]["properties"]
-        
-        DynamicModel = create_dynamic_model(
-            agent_name=selected_agent,
-            input_schema=input_schema,
-            schema_defs=schema_defs
-        )
+    # Get the selected agent's data and schema
+    agent_data = next(a for a in st.session_state.agents if a["data"]["id"] == selected_agent)
+    
+    # Display agent info
+    with st.container(border=True):
+        display_agent_info(agent_data["data"])
 
-        # Create the form using streamlit_pydantic
+    # Get the schemas
+    input_schema = agent_data["schema"]["input"]
+    config_schema = agent_data["schema"]["config"]
+    schema_defs = agent_data["schema"]
+    
+    if st.checkbox("Debug: Show Schema"):
+        st.write("Schema:", schema_defs)
+        st.write("Input Schema:", input_schema)
+        st.write("Config Schema:", config_schema)
+
+    # Create both input and config models
+    InputModel = create_dynamic_model(
+        agent_name=f"{selected_agent}_input",
+        input_schema=input_schema,
+        schema_defs=schema_defs
+    )
+
+    ConfigModel = create_dynamic_model(
+        agent_name=f"{selected_agent}_config",
+        input_schema=config_schema,
+        schema_defs=schema_defs
+    )
+
+    # Create tabs for input and config
+    input_tab, config_tab = st.tabs(["Input", "Configuration"])
+
+    # Store config in session state to persist between reruns
+    if f"config_{selected_agent}" not in st.session_state:
+        st.session_state[f"config_{selected_agent}"] = None
+
+    with input_tab:
+        # Create the input form
         form_key = f"agent_form_{selected_agent}"
         submitted_data = pydantic_form(
             key=form_key,
-            model=DynamicModel,
+            model=InputModel,
             submit_label="Send",
             clear_on_submit=True
         )
 
-        if submitted_data:
-            st.write("Submitted data:", submitted_data)
-            # TODO: Implement the chat endpoint call
-            
-    except Exception as e:
-        st.error(f"An error occurred: {str(e)}")
+    with config_tab:
+        # Create the config form
+        config_key = f"config_form_{selected_agent}"
+        config_data = pydantic_form(
+            key=config_key,
+            model=ConfigModel,
+            submit_label="Save Configuration"
+        )
+        if config_data:
+            st.session_state[f"config_{selected_agent}"] = config_data
+            st.success("Configuration saved!")
+
+    if submitted_data:
+        st.write("Submitted data:", submitted_data)
+        if st.session_state[f"config_{selected_agent}"]:
+            st.write("Using configuration:", st.session_state[f"config_{selected_agent}"])        # TODO: Implement the chat endpoint call
 
 if __name__ == "__main__":
     main()
