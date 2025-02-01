@@ -6,6 +6,7 @@ from pydantic import BaseModel
 import json
 import asyncio
 from enum import Enum
+from functools import lru_cache
 
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
@@ -30,22 +31,30 @@ app.add_middleware(
 async def health_check():
     return {"status": "ok"}
 
+@lru_cache(maxsize=32)
+def generate_schema_for_agent(agent):
+    """Generate and cache schema for an agent."""
+    # Get full schemas with enum values
+    input_schema = agent.input_schema.model_json_schema(mode='serialization')
+    config_schema = agent.config_schema.model_json_schema(mode='serialization')
+    
+    # Add enum values for any enum fields
+    for schema in [input_schema, config_schema]:
+        for prop in schema.get("properties", {}).values():
+            if hasattr(prop.get("type", None), "__args__"):
+                enum_type = prop["type"].__args__[0]
+                if issubclass(enum_type, Enum):
+                    prop["enum"] = [e.value for e in enum_type]
+    
+    return {
+        "input": input_schema,
+        "config": config_schema
+    }
+
 @app.get("/agents")
 async def agents():
     agent_list = []
     for agent in AGENTS:
-        # Get full schemas with enum values
-        input_schema = agent.input_schema.model_json_schema(mode='serialization')
-        config_schema = agent.config_schema.model_json_schema(mode='serialization')
-        
-        # Add enum values for any enum fields
-        for schema in [input_schema, config_schema]:
-            for prop in schema.get("properties", {}).values():
-                if hasattr(prop.get("type", None), "__args__"):
-                    enum_type = prop["type"].__args__[0]
-                    if issubclass(enum_type, Enum):
-                        prop["enum"] = [e.value for e in enum_type]
-        
         agent_data = {
             "id": agent.id,
             "name": agent.name,
@@ -54,12 +63,12 @@ async def agents():
             "version": agent.version
         }
         
+        # Use cached schema generation
+        schema = generate_schema_for_agent(agent)
+        
         agent_list.append({
             "data": agent_data,
-            "schema": {
-                "input": input_schema,
-                "config": config_schema
-            }
+            "schema": schema
         })
     
     return {"agents": agent_list}

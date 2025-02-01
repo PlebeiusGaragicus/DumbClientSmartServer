@@ -3,11 +3,13 @@
 from enum import Enum
 from typing import Any, Dict, List, Tuple, Type, Union
 from pydantic import create_model, Field, BaseModel
+import streamlit as st
 
-from .config import BACKEND_URL
+from .config import BACKEND_URL, AGENTS_ENDPOINT_CACHE_DURATION
 
+@st.cache_data(ttl=AGENTS_ENDPOINT_CACHE_DURATION)  # Cache for 5 minutes
 def get_agents() -> List[Dict[str, Any]]:
-    """Fetch available agents from the backend."""
+    """Fetch available agents from the backend with caching."""
     import requests
     try:
         response = requests.get(f"{BACKEND_URL}/agents")
