@@ -20,6 +20,34 @@ def display_agent_info(info: Dict[str, Any]) -> None:
     st.write(f"Version: {info['version']}")
     st.write(f"Description: {info['info']}")
 
+@st.dialog("Agent Configuration")
+def show_config_dialog(selected_agent: str, ConfigModel: Any) -> None:
+    """Show the configuration dialog for the selected agent.
+    
+    Args:
+        selected_agent (str): The ID of the selected agent
+        ConfigModel (Any): The configuration model class
+    """
+    config_key = f"config_form_{selected_agent}"
+    saved_config = st.session_state.get(f"config_{selected_agent}")
+    
+    # Convert dict to model instance if needed
+    if isinstance(saved_config, dict):
+        saved_config = ConfigModel(**saved_config)
+    
+    # Use saved config or create new instance
+    model_instance = saved_config if saved_config else ConfigModel()
+    
+    config_data = pydantic_form(
+        key=config_key,
+        model=model_instance,
+        submit_label="Save Configuration"
+    )
+    if config_data:
+        st.session_state[f"config_{selected_agent}"] = config_data
+        st.session_state.show_config_dialog = False
+        st.rerun()
+
 def main():
     # Initialize session state for agents if not exists
     if "agents" not in st.session_state:
@@ -32,13 +60,15 @@ def main():
     agent_ids = [agent["data"]["id"] for agent in st.session_state.agents]
     agent_names = [agent["data"]["name"] for agent in st.session_state.agents]
     
-    selected_agent_name = st.radio(
-        "Select an Agent",
-        options=agent_names,
-        horizontal=True,
-        label_visibility="collapsed"
-    )
-
+    col1, col2 = st.columns([4, 1])
+    with col1:
+        selected_agent_name = st.radio(
+            "Select an Agent",
+            options=agent_names,
+            horizontal=True,
+            label_visibility="collapsed"
+        )
+    
     # Map display name back to id
     selected_agent = next(agent["data"]["id"] 
                         for agent in st.session_state.agents 
@@ -74,39 +104,52 @@ def main():
         schema_defs=schema_defs
     )
 
-    # Create tabs for input and config
-    input_tab, config_tab = st.tabs(["Input", "Configuration"])
-
     # Store config in session state to persist between reruns
     if f"config_{selected_agent}" not in st.session_state:
-        st.session_state[f"config_{selected_agent}"] = None
+        # Get default values from schema
+        defaults = {}
+        for field, schema in config_schema.get("properties", {}).items():
+            if "$ref" in schema:
+                # Get the referenced definition
+                ref_name = schema["$ref"].split("/")[-1]
+                ref_schema = schema_defs.get("$defs", {}).get(ref_name, {})
+                if "default" in schema:
+                    defaults[field] = schema["default"]
+            elif "default" in schema:
+                defaults[field] = schema["default"]
+        
+        # Initialize with default config
+        st.session_state[f"config_{selected_agent}"] = ConfigModel(**defaults)
 
-    with input_tab:
-        # Create the input form
-        form_key = f"agent_form_{selected_agent}"
-        submitted_data = pydantic_form(
-            key=form_key,
-            model=InputModel,
-            submit_label="Send",
-            clear_on_submit=True
-        )
+    if "show_config_dialog" not in st.session_state:
+        st.session_state.show_config_dialog = False
 
-    with config_tab:
-        # Create the config form
-        config_key = f"config_form_{selected_agent}"
-        config_data = pydantic_form(
-            key=config_key,
-            model=ConfigModel,
-            submit_label="Save Configuration"
-        )
-        if config_data:
-            st.session_state[f"config_{selected_agent}"] = config_data
-            st.success("Configuration saved!")
+    # Add configuration button in the second column
+    with col2:
+        if st.button("⚙️ Configure"):
+            show_config_dialog(selected_agent, ConfigModel)
+
+    # Create the input form
+    form_key = f"agent_form_{selected_agent}"
+    submitted_data = pydantic_form(
+        key=form_key,
+        model=InputModel,
+        submit_label="Send",
+        clear_on_submit=True
+    )
 
     if submitted_data:
         st.write("Submitted data:", submitted_data)
-        if st.session_state[f"config_{selected_agent}"]:
-            st.write("Using configuration:", st.session_state[f"config_{selected_agent}"])        # TODO: Implement the chat endpoint call
+        config = st.session_state[f"config_{selected_agent}"]
+        if isinstance(config, dict):
+            # Convert dict to model instance if needed
+            config = ConfigModel(**config)
+            st.session_state[f"config_{selected_agent}"] = config
+        st.write("Using configuration:", config)
+        # TODO: Implement the chat endpoint call
 
 if __name__ == "__main__":
     main()
+
+    with st.sidebar:
+        st.write(st.session_state)

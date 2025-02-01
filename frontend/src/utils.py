@@ -1,8 +1,8 @@
 """Utility functions for the Streamlit frontend."""
 
 from enum import Enum
-from typing import Any, Dict, List, Tuple, Type, Union
-from pydantic import create_model
+from typing import Any, Dict, List, Tuple, Type, Union, Literal
+from pydantic import create_model, Field
 from .config import BACKEND_URL
 
 def get_agents() -> List[Dict[str, Any]]:
@@ -22,28 +22,22 @@ def get_agents() -> List[Dict[str, Any]]:
     except requests.RequestException as e:
         raise RuntimeError(f"Failed to fetch agents: {str(e)}")
 
-def create_enum_from_schema(enum_values: list) -> Type[Enum]:
-    """Create an Enum class from a list of valid values.
-    
-    Args:
-        enum_values (list): List of enum values
-        
-    Returns:
-        Type[Enum]: Generated Enum class
-    """
-    return Enum('DynamicEnum', {str(v).upper(): str(v) for v in enum_values})
+def resolve_schema_ref(ref: str, schema_defs: Dict[str, Any]) -> Dict[str, Any]:
+    """Resolve a schema reference to its definition."""
+    # Remove the #/$defs/ prefix to get the definition name
+    def_name = ref.split('/')[-1]
+    return schema_defs.get("$defs", {}).get(def_name, {})
 
-def create_field_from_schema(field_schema: Dict[str, Any]) -> Tuple[Type, Any]:
-    """Create a pydantic field tuple from a JSON schema field definition.
-    
-    Args:
-        field_schema (Dict[str, Any]): JSON schema field definition
-        
-    Returns:
-        Tuple[Type, Any]: Tuple of (field_type, field_default)
-    """
+def create_field_from_schema(field_schema: Dict[str, Any], schema_defs: Dict[str, Any]) -> Tuple[Type, Any]:
+    """Create a pydantic field tuple from a JSON schema field definition."""
     field_type: Type = str  # default type
     field_default: Any = ...  # required by default
+
+    # Handle references
+    if "$ref" in field_schema:
+        ref_schema = resolve_schema_ref(field_schema["$ref"], schema_defs)
+        # Merge any overrides from the field schema
+        field_schema = {**ref_schema, **field_schema}
 
     # Handle type mapping
     type_map = {
@@ -57,17 +51,43 @@ def create_field_from_schema(field_schema: Dict[str, Any]) -> Tuple[Type, Any]:
     if "type" in field_schema:
         field_type = type_map.get(field_schema["type"], str)
 
+    # Handle default values
+    if "default" in field_schema:
+        field_default = field_schema["default"]
+    
+    # Build field constraints
+    field_metadata = {}
+    
+    # Copy over all constraints and metadata
+    for key in [
+        "description", "title", "minimum", "maximum", "multiple_of",
+        "min_length", "max_length", "pattern", "format", "readOnly",
+        "ge", "le", "gt", "lt"
+    ]:
+        if key in field_schema:
+            field_metadata[key] = field_schema[key]
+    
     # Handle enums
     if "enum" in field_schema:
-        field_type = create_enum_from_schema(field_schema["enum"])
-        if "default" in field_schema:
-            field_default = field_type(field_schema["default"])
+        # Create a proper string Enum class
+        enum_name = field_schema.get("title", "DynamicEnum")
+        enum_values = field_schema["enum"]
+        
+        # Create the Enum class
+        enum_type = type(
+            enum_name,
+            (str, Enum),
+            {v: v for v in enum_values}  # Use the values directly as both key and value
+        )
+        
+        # Convert default to enum instance if present
+        if field_default != ...:
+            field_default = enum_type(field_default)
+        
+        return enum_type, field_default
 
-    # Handle default values
-    elif "default" in field_schema:
-        field_default = field_schema["default"]
-
-    return field_type, field_default
+    # Return field type and configuration
+    return field_type, Field(default=field_default, **field_metadata)
 
 def create_dynamic_model(
     agent_name: str,
@@ -89,7 +109,8 @@ def create_dynamic_model(
     # Process properties from the input schema
     properties = input_schema.get("properties", {})
     for field_name, field_schema in properties.items():
-        model_fields[field_name] = create_field_from_schema(field_schema)
+        field_type, field_config = create_field_from_schema(field_schema, schema_defs)
+        model_fields[field_name] = (field_type, field_config)
     
     # Create and return the model
     return create_model(f"{agent_name}_input", **model_fields)
