@@ -71,6 +71,7 @@ def handle_stream_response(selected_agent: str, input_data: Dict[str, Any], conf
         
         # Create a placeholder for the streaming output
         message_placeholder = st.empty()
+        full_response = ""
         
         # Process the streaming response
         try:
@@ -81,7 +82,19 @@ def handle_stream_response(selected_agent: str, input_data: Dict[str, Any], conf
                     try:
                         event = json.loads(event_data)
                         # Update the placeholder with the event data
-                        message_placeholder.json(event)
+
+                        data = event.get("data", None)
+                        if data:
+                            chunk = data.get("chunk", None)
+                            if chunk:
+                                content = chunk.get("content", None)
+                                if content:
+                                    message_placeholder.write(content)
+                                    full_response += content
+
+
+                        # st.write(event)
+                        message_placeholder.write(full_response + "|")
                     except json.JSONDecodeError as e:
                         st.error(f"Failed to parse event data: {e}")
         except requests.exceptions.ChunkedEncodingError:
