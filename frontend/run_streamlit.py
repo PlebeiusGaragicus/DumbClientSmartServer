@@ -4,6 +4,8 @@ import traceback
 import streamlit as st
 from streamlit_pydantic import pydantic_form
 from typing import Dict, Any, Optional
+import requests
+import json
 
 from src.utils import get_agents, create_dynamic_model
 from src.config import BACKEND_URL
@@ -41,16 +43,58 @@ def show_config_dialog(selected_agent: str, ConfigModel: Any) -> None:
     config_data = pydantic_form(
         key=config_key,
         model=model_instance,
-        submit_label="💾 :green[Save Configuration]"
+        submit_label=":green[Save Configuration]"
     )
     if config_data:
         st.session_state[f"config_{selected_agent}"] = config_data
         st.session_state.show_config_dialog = False
         st.rerun()
 
+def handle_stream_response(selected_agent: str, input_data: Dict[str, Any], config: Dict[str, Any]) -> None:
+    """Handle streaming response from the agent."""
+    try:
+        # Convert input data to expected format if needed
+        # if not isinstance(input_data.get("messages", []), list):
+        if not isinstance(input_data.messages, list):
+            input_data.messages = [{"content": input_data.messages, "type": "human"}]
+
+        response = requests.post(
+            f"{BACKEND_URL}/stream",
+            json={
+                "agent_id": selected_agent,
+                "input_data": input_data.model_dump(),
+                "config": config.model_dump()
+            },
+            stream=True
+        )
+        response.raise_for_status()
+        
+        # Create a placeholder for the streaming output
+        message_placeholder = st.empty()
+        
+        # Process the streaming response
+        try:
+            for line in response.iter_lines():
+                if line and line.startswith(b'data: '):
+                    # Remove the "data: " prefix and decode
+                    event_data = line[6:].decode('utf-8')
+                    try:
+                        event = json.loads(event_data)
+                        # Update the placeholder with the event data
+                        message_placeholder.json(event)
+                    except json.JSONDecodeError as e:
+                        st.error(f"Failed to parse event data: {e}")
+        except requests.exceptions.ChunkedEncodingError:
+            st.warning("Stream ended unexpectedly. This might be normal if the response is complete.")
+                
+    except Exception as e:
+        st.error(f"Error during streaming: {str(e)}")
+        traceback.print_exc()
+
 def main():
     # Initialize session state for agents if not exists
     if "agents" not in st.session_state:
+        print("DEBUG --- GETTING AGENTS GETTING AGENTS GETTING AGENTS")
         st.session_state.agents = get_agents()
 
     agent_names = [agent["data"]["name"] for agent in st.session_state.agents]
@@ -133,10 +177,13 @@ def main():
             config = ConfigModel(**config)
             st.session_state[f"config_{selected_agent}"] = config
         st.write("Using configuration:", config)
-        # TODO: Implement the chat endpoint call
+            
+        # Handle the streaming response
+        handle_stream_response(selected_agent, submitted_data, config)
 
 if __name__ == "__main__":
     main()
 
     with st.sidebar:
-        st.write(st.session_state)
+        with st.expander("DEBUG"):
+            st.write(st.session_state)

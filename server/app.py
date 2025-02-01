@@ -9,7 +9,7 @@ from enum import Enum
 from functools import lru_cache
 
 from fastapi import FastAPI
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI(title="agent testing")
 
@@ -72,3 +72,69 @@ async def agents():
         })
     
     return {"agents": agent_list}
+
+class StreamRequest(BaseModel):
+    agent_id: str
+    input_data: dict = {"messages": []}  # Default to empty list of messages
+    config: dict = {}
+
+    def model_dump(self):
+        data = super().model_dump()
+        # Ensure messages is always a list
+        if isinstance(data["input_data"].get("messages"), str):
+            data["input_data"]["messages"] = [{"content": data["input_data"]["messages"], "type": "human"}]
+        return data
+
+from typing import Any
+def serialize_custom_objects(obj: Any) -> Any:
+    """Convert custom objects to plain dictionaries"""
+    if hasattr(obj, '__dict__'):
+        return obj.__dict__
+    if isinstance(obj, (set, frozenset)):
+        return list(obj)
+    return str(obj)
+
+async def stream_generator(agent, input_data, config):
+    # async for chunk in agent.graph.astream_events(input=input_data, config=config, version="v2"):
+    #     yield json.dumps({"chunk": chunk}) + "\n"
+
+    async for event in agent.graph.astream_events(input=input_data, config=config, version="v2"):
+        try:
+            serialized_event = json.dumps(
+                event, 
+                default=serialize_custom_objects
+            ).replace('\n', '\\n')
+
+            yield f"data: {serialized_event}\n\n"
+        except Exception as e:
+            print(f"Serialization error: {e}")
+
+
+# KEEP THIS
+# @app.post("/stream")
+# async def stream(request: StreamRequest):
+#     # Find the agent with the matching ID
+#     agent = next((a for a in AGENTS if a.id == request.agent_id), None)
+#     if not agent:
+#         return {"error": f"Agent with ID {request.agent_id} not found"}
+    
+#     return StreamingResponse(
+#         stream_generator(agent, request.input_data, request.config),
+#         media_type="application/x-ndjson"
+#     )
+
+@app.post("/stream")
+async def stream(request: StreamRequest):
+    # Find the agent with the matching ID
+    agent = next((a for a in AGENTS if a.id == request.agent_id), None)
+    if not agent:
+        return JSONResponse(status_code=404, content={"message": "Agent not found"})
+    
+    print("STREAM: ", agent)
+    print(request)
+
+    # Return the streaming response directly without awaiting
+    return StreamingResponse(
+        stream_generator(agent, request.input_data, request.config),
+        media_type="text/event-stream"
+    )

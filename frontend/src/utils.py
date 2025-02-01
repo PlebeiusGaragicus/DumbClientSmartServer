@@ -10,6 +10,9 @@ from .config import BACKEND_URL, AGENTS_ENDPOINT_CACHE_DURATION
 @st.cache_data(ttl=AGENTS_ENDPOINT_CACHE_DURATION)  # Cache for 5 minutes
 def get_agents() -> List[Dict[str, Any]]:
     """Fetch available agents from the backend with caching."""
+
+    print("DEBUG --- NO CACHE NO CACHE NO CACHE NO CACHE")
+
     import requests
     try:
         response = requests.get(f"{BACKEND_URL}/agents")
