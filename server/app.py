@@ -13,6 +13,18 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI(title="agent testing")
 
+import logging
+from util.logger import setup_logging
+setup_logging()
+logger = logging.getLogger("PlebServe")
+logging.getLogger("logger").setLevel(logging.INFO)
+logging.getLogger("asyncio").setLevel(logging.INFO)
+logging.getLogger("httpcore").setLevel(logging.INFO)
+logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
+logging.getLogger("httpx").setLevel(logging.INFO)
+logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.INFO)
+
+
 from graphs import AGENTS
 
 
@@ -130,8 +142,10 @@ async def stream(request: StreamRequest):
     if not agent:
         return JSONResponse(status_code=404, content={"message": "Agent not found"})
     
-    print("STREAM: ", agent)
-    print(request)
+    # print("STREAM: ", agent)
+    logger.debug("STREAM: ", agent)
+    # print(request)
+    logger.debug(request)
 
     # Return the streaming response directly without awaiting
     return StreamingResponse(

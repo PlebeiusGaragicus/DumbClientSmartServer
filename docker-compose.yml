@@ -1,15 +1,12 @@
 services:
 
   frontend:
-    # logging:
-    #   options:
-    #     prefix: ''
 
     container_name: streamlit_frontend
 
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
 
     ports:
       - "${STREAMLIT_PORT:?Your .env file must have a STREAMLIT_PORT variable}:8501"
@@ -26,10 +23,9 @@ services:
       - ./auth.yaml:/app/auth.yaml
 
     environment:
+      - DEBUG=${DEBUG}
       # Avoid output buffering; this line ensures that print() statements are sent directly to the terminal
       - PYTHONUNBUFFERED=1
-      # Set DEBUG to 1 (in your .env file) if you want to see the logs
-      - DEBUG=${DEBUG}
       - API_URL=http://backend:${FASTAPI_PORT:-8000}
 
     depends_on:
@@ -49,9 +45,6 @@ services:
 
 
   backend:
-    # logging:
-    #   options:
-    #     prefix: ''
 
     container_name: fastapi_backend
 
@@ -69,10 +62,9 @@ services:
       - ./graphs:/app/graphs
 
     environment:
+      - DEBUG=${DEBUG}
       # Avoid output buffering; this line ensures that print() statements are sent directly to the terminal
       - PYTHONUNBUFFERED=1
-      # Set DEBUG to 1 (in your .env file) if you want to see the logs
-      - DEBUG=${DEBUG}
 
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8000/health"]

@@ -1,19 +1,11 @@
 import os
-import operator
-from typing import Annotated, Optional
-# from langchain_core.pydantic_v1 import BaseModel
-from pydantic import BaseModel, Field
-from langgraph.graph.message import add_messages
-from langgraph.graph.state import StateGraph, RunnableConfig
-from langchain_ollama import ChatOllama
-
-from dataclasses import dataclass, fields
-from typing import Any
-
-from langchain_core.runnables import RunnableConfig
-from typing_extensions import Annotated
-from pydantic import BaseModel, Field
 from enum import Enum
+from typing import Optional, Any
+from pydantic import BaseModel, Field
+# from langgraph.graph.state import RunnableConfig
+from langchain_core.runnables import RunnableConfig
+
+
 
 
 ############################################################################
@@ -24,7 +16,6 @@ OLLAMA_HOST = "http://host.docker.internal:11434"
 
 
 ############################################################################
-
 class KeepAlive(str, Enum):
     NONE = "0"
     FIVE_MINUTES = "5m"
@@ -35,7 +26,6 @@ class LLMModelsAvailable(str, Enum):
     llama31 = "llama3.1"
 
 ############################################################################
-
 class Configuration(BaseModel):
     """The configurable fields for the graph."""
 
@@ -50,7 +40,13 @@ class Configuration(BaseModel):
         KeepAlive.FIVE_MINUTES,
         description="How long to keep the model in memory"
     )
+    # ollama_endpoint: str = Field(
+    #     OLLAMA_HOST,
+    #     description="Ollama endpoint",
+    #     optional=True
+    # )
 
+    ##############################################################
     @classmethod
     def from_runnable_config(
         cls, config: Optional[RunnableConfig] = None

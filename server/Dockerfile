@@ -12,6 +12,7 @@ COPY server/requirements.txt requirements.txt
 RUN pip3 install --no-cache-dir -r requirements.txt
 
 COPY .env .env
+COPY util/ util/
 COPY server/app.py server.py
 COPY graphs/ graphs/
 

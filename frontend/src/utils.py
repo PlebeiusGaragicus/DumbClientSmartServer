@@ -7,7 +7,8 @@ import streamlit as st
 
 from .config import BACKEND_URL, AGENTS_ENDPOINT_CACHE_DURATION
 
-@st.cache_data(ttl=AGENTS_ENDPOINT_CACHE_DURATION)  # Cache for 5 minutes
+# @st.cache_data(ttl=AGENTS_ENDPOINT_CACHE_DURATION)  # Cache for 5 minutes
+#TODO: turn on the above for production
 def get_agents() -> List[Dict[str, Any]]:
     """Fetch available agents from the backend with caching."""
 
