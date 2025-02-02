@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 class State(BaseModel):
     query: str = Field(
-        "translate `I'm hungry` to german",
+        "what is 17 * 17?",
         description="What do you want to research?"
     )
 
@@ -23,3 +23,6 @@ class State(BaseModel):
         format="multi-line",
         description="Current state of the draft"
     )
+
+class Result(BaseModel):
+    reply: str

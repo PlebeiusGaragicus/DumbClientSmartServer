@@ -87,14 +87,27 @@ async def agents():
 
 class StreamRequest(BaseModel):
     agent_id: str
-    input_data: dict = {"messages": []}  # Default to empty list of messages
-    config: dict = {}
+    input_data: dict = {}  # Default to empty
+    config: dict = {}  # Default to empty
 
     def model_dump(self):
         data = super().model_dump()
-        # Ensure messages is always a list
-        if isinstance(data["input_data"].get("messages"), str):
-            data["input_data"]["messages"] = [{"content": data["input_data"]["messages"], "type": "human"}]
+        logger.debug(f"Input data before processing: {data['input_data']}")
+
+        # Initialize messages list if it doesn't exist
+        if "messages" not in data["input_data"]:
+            data["input_data"]["messages"] = []
+        
+        # Get the query from input_data or messages
+        query = data["input_data"].get("query", None)
+        if query:
+            # Create a new messages list with the query as the first message
+            data["input_data"]["messages"] = [{
+                "role": "human",
+                "content": query
+            }] + data["input_data"]["messages"]
+        
+        logger.debug(f"Final input data: {data['input_data']}")
         return data
 
 from typing import Any

@@ -4,9 +4,9 @@ from langgraph.graph.state import StateGraph
 
 
 ## DEFINE OUR GRAPH, ALONG WITH ITS SCHEMAS
-from .state import State
+from .state import State, Result
 from .config import OllamaConfig
-graph_builder = StateGraph(State, input=State, output=State, config_schema=OllamaConfig)
+graph_builder = StateGraph(State, input=State, output=Result, config_schema=OllamaConfig)
 
 
 ## ADD ALL OUR NODES
@@ -32,4 +32,6 @@ graph_builder.add_edge("chatbot", "__end__")
 
 ## COMPILE AND CONFIGURE
 graph = graph_builder.compile()
-graph.name = "Ollama with commands"
+
+#NOTE: Don't do this, we want the name to default to "LangGraph" so we can 'skip it'
+# graph.name = "Ollama with commands"

@@ -28,4 +28,12 @@ def chatbot(state: State, config: RunnableConfig):
 
     response = llm.stream(messages)
 
-    return {"messages": [{"role": "assistant", "content": chunk.content} for chunk in response]}
+    # Join all chunks into a single response
+    full_response = "".join(chunk.content for chunk in response)
+    # return {"reply": full_response}
+    return {"messages": [
+        # {"role": "human", "content": state.query},
+        {"role": "assistant", "content": full_response}
+    ]}
+
+    # return {"messages": [{"role": "assistant", "content": chunk.content} for chunk in response]}

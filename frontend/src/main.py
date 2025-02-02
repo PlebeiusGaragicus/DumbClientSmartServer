@@ -64,21 +64,38 @@ def show_config_dialog(selected_agent: str, ConfigModel: Any) -> None:
         st.session_state.show_config_dialog = False
         st.rerun()
 
-def handle_stream_response(selected_agent: str, input_data: Dict[str, Any], config: Dict[str, Any]) -> None:
-    """Handle streaming response from the agent."""
+def handle_stream_response(selected_agent: str, input_data: Dict[str, Any], config: Dict[str, Any], InputModel: Any) -> None:
+    """Handle streaming response from the agent.
+    
+    Args:
+        selected_agent (str): The ID of the selected agent
+        input_data (Dict[str, Any]): The input data from the form
+        config (Dict[str, Any]): The configuration for the agent
+        InputModel (Any): The Pydantic model class for the input data
+    """
     try:
-        # Convert input data to expected format if needed
-        # if not isinstance(input_data.get("messages", []), list):
-        if not isinstance(input_data.messages, list):
-            input_data.messages = [{"content": input_data.messages, "type": "human"}]
+        # Initialize message history in session state if it doesn't exist
+        if "message_history" not in st.session_state:
+            st.session_state.message_history = []
+
+        st.session_state.message_history.append(
+            {"role": "human", "content": input_data.query}
+        )
+
+        # Create a proper InputModel with query and message history
+        input_data_dict = input_data.model_dump()
+        input_data_dict["messages"] = st.session_state.message_history
+
+        # Prepare the request payload
+        payload = {
+            "agent_id": selected_agent,
+            "input_data": input_data_dict,
+            "config": config.model_dump() if hasattr(config, 'model_dump') else config
+        }
 
         response = requests.post(
             f"{BACKEND_URL}/stream",
-            json={
-                "agent_id": selected_agent,
-                "input_data": input_data.model_dump(),
-                "config": config.model_dump()
-            },
+            json=payload,
             stream=True
         )
         response.raise_for_status()
@@ -110,10 +127,15 @@ def handle_stream_response(selected_agent: str, input_data: Dict[str, Any], conf
                                 content = chunk.get("content", None)
                                 # if content:
 
-                        if name == "__start__" or name == "_write":
+                        if name == "LangGraph" and event.endswith("_end"):
+                            output = data.get("output", None)
+                            # with st.expander("🙌 Output"):
+                            #     st.write(output)
+
+                        if name == "__start__" or name == "_write" or name == "LangGraph":
                             continue
 
-                        if not event.endswith("_stream"):
+                        if not event.endswith("_stream") and not event.startswith("on_chat_model"):
                             if name and event:
                                 with st.sidebar:
                                     st.header(f"`{event}` {name}")
@@ -125,14 +147,30 @@ def handle_stream_response(selected_agent: str, input_data: Dict[str, Any], conf
                                 full_response += content
                         if event.endswith("_end"):
                             with st.sidebar:
-                                st.json(data)
-
+                                with st.expander("data"):
+                                    st.json(data)
 
                         message_placeholder.write(full_response + "|")
+
                     except json.JSONDecodeError as e:
                         st.error(f"Failed to parse event data: {e}")
+
+
+            ### END OF STREAMING `FOR` LOOP
+
+            if output:
+                with st.expander("🙌 Output"):
+                    st.write(output)
+
+                reply = output['messages'][-1]['content']
+
+                st.session_state.message_history.append({"role": "assistant", "content": reply})
+                st.chat_message("assistant").write(reply)
+
+
         except requests.exceptions.ChunkedEncodingError:
             st.warning("Stream ended unexpectedly.")
+
 
     except Exception as e:
         st.error(f"Error during streaming: {str(e)}")
@@ -182,6 +220,20 @@ def main():
         schema_defs=schema_defs
     )
 
+    # Create a copy of the input schema without the messages field
+    input_schema_without_messages = input_schema.copy()
+    if "properties" in input_schema_without_messages:
+        properties = input_schema_without_messages["properties"].copy()
+        if "messages" in properties:
+            del properties["messages"]
+        input_schema_without_messages["properties"] = properties
+
+    InputModel_withoutmessages = create_dynamic_model(
+        agent_name=f"{selected_agent}_input_nomessages",
+        input_schema=input_schema_without_messages,
+        schema_defs=schema_defs
+    )
+
     ConfigModel = create_dynamic_model(
         agent_name=f"{selected_agent}_config",
         input_schema=config_schema,
@@ -221,7 +273,7 @@ def main():
     form_key = f"agent_form_{selected_agent}"
     submitted_data = pydantic_form(
         key=form_key,
-        model=InputModel,
+        model=InputModel_withoutmessages,
         submit_label="Send",
         clear_on_submit=True
     )
@@ -236,9 +288,7 @@ def main():
         st.write("Using configuration:", config)
             
         # Handle the streaming response
-        handle_stream_response(selected_agent, submitted_data, config)
-
-
+        handle_stream_response(selected_agent, submitted_data, config, InputModel)
 
 
     ##########################################################
