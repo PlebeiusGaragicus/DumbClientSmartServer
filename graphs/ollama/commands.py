@@ -7,6 +7,11 @@ from .state import State
 
 
 def _check_for_command(state: State, config: RunnableConfig):
+    """
+        Check if the last message starts with a '/'.
+        This function is used as a conditional edge in our graph
+        This function is prefixed with a '_' so that it's progress doesn't show in the frontend
+    """
     configurable = OllamaConfig.from_runnable_config(config)
 
     if configurable.disable_commands:

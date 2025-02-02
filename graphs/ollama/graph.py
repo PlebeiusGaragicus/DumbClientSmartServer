@@ -14,7 +14,6 @@ from .commands import _check_for_command, handle_command
 from .nodes import chatbot
 graph_builder.add_node("chatbot", chatbot)
 graph_builder.add_node("handle_command", handle_command)
-# graph_builder.add_node("check_for_command", check_for_command)
 
 
 ## CONNECT ALL OUR NODES

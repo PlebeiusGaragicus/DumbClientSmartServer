@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 class State(BaseModel):
     query: str = Field(
         "what is 17 * 17?",
+        format="multi-line",
         description="What do you want to research?"
     )
 
