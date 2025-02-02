@@ -10,17 +10,17 @@ graph_builder = StateGraph(State, input=State, output=Result, config_schema=Olla
 
 
 ## ADD ALL OUR NODES
-from .commands import check_for_command, handle_command
+from .commands import _check_for_command, handle_command
 from .nodes import chatbot
 graph_builder.add_node("chatbot", chatbot)
 graph_builder.add_node("handle_command", handle_command)
-graph_builder.add_node("check_for_command", check_for_command)
+# graph_builder.add_node("check_for_command", check_for_command)
 
 
 ## CONNECT ALL OUR NODES
 graph_builder.add_conditional_edges(
     "__start__",
-    check_for_command,
+    _check_for_command,
     {
         True: "handle_command",
         False: "chatbot"

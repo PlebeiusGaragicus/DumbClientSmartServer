@@ -6,7 +6,7 @@ from .config import OllamaConfig
 from .state import State
 
 
-def check_for_command(state: State, config: RunnableConfig):
+def _check_for_command(state: State, config: RunnableConfig):
     configurable = OllamaConfig.from_runnable_config(config)
 
     if configurable.disable_commands:

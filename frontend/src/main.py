@@ -132,7 +132,7 @@ def handle_stream_response(selected_agent: str, input_data: Dict[str, Any], conf
                             # with st.expander("🙌 Output"):
                             #     st.write(output)
 
-                        if name == "__start__" or name == "_write" or name == "LangGraph":
+                        if name == "__start__" or name == "_write" or name == "LangGraph" or name.startswith("_"):
                             continue
 
                         if not event.endswith("_stream") and not event.startswith("on_chat_model"):
