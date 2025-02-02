@@ -90,30 +90,50 @@ def handle_stream_response(selected_agent: str, input_data: Dict[str, Any], conf
         # Process the streaming response
         try:
             for line in response.iter_lines():
+                # logger.debug(line)
+                # print(line)
                 if line and line.startswith(b'data: '):
                     # Remove the "data: " prefix and decode
                     event_data = line[6:].decode('utf-8')
                     try:
-                        event = json.loads(event_data)
-                        # Update the placeholder with the event data
+                        event_data = json.loads(event_data)
+                        # print(json.dumps(event_data, indent=4))
 
-                        data = event.get("data", None)
+
+                        name = event_data.get("name", None)
+                        event = event_data.get("event", None)
+                        data = event_data.get("data", None)
+
                         if data:
                             chunk = data.get("chunk", None)
                             if chunk:
                                 content = chunk.get("content", None)
-                                if content:
-                                    message_placeholder.write(content)
-                                    full_response += content
+                                # if content:
+
+                        if name == "__start__" or name == "_write":
+                            continue
+
+                        if not event.endswith("_stream"):
+                            if name and event:
+                                with st.sidebar:
+                                    st.header(f"`{event}` {name}")
 
 
-                        # st.write(event)
+                        if event.endswith("_stream"):
+                            if content:
+                                message_placeholder.write(content)
+                                full_response += content
+                        if event.endswith("_end"):
+                            with st.sidebar:
+                                st.json(data)
+
+
                         message_placeholder.write(full_response + "|")
                     except json.JSONDecodeError as e:
                         st.error(f"Failed to parse event data: {e}")
         except requests.exceptions.ChunkedEncodingError:
-            st.warning("Stream ended unexpectedly. This might be normal if the response is complete.")
-                
+            st.warning("Stream ended unexpectedly.")
+
     except Exception as e:
         st.error(f"Error during streaming: {str(e)}")
         traceback.print_exc()

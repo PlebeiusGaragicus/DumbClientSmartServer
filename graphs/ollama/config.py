@@ -2,7 +2,6 @@ import os
 from enum import Enum
 from typing import Optional, Any
 from pydantic import BaseModel, Field
-# from langgraph.graph.state import RunnableConfig
 from langchain_core.runnables import RunnableConfig
 
 
@@ -26,7 +25,7 @@ class LLMModelsAvailable(str, Enum):
     llama31 = "llama3.1"
 
 ############################################################################
-class Configuration(BaseModel):
+class OllamaConfig(BaseModel):
     """The configurable fields for the graph."""
 
     model: LLMModelsAvailable = Field(LLMModelsAvailable.phi4)
@@ -40,6 +39,10 @@ class Configuration(BaseModel):
         KeepAlive.FIVE_MINUTES,
         description="How long to keep the model in memory"
     )
+    disable_commands: bool = Field(
+        False,
+        description="Whether to disable commands (i.e. starts with '/')"
+    )
     # ollama_endpoint: str = Field(
     #     OLLAMA_HOST,
     #     description="Ollama endpoint",
@@ -50,7 +53,7 @@ class Configuration(BaseModel):
     @classmethod
     def from_runnable_config(
         cls, config: Optional[RunnableConfig] = None
-    ) -> "Configuration":
+    ) -> "OllamaConfig":
         """Create a Configuration instance from a RunnableConfig."""
         configurable = (
             config["configurable"] if config and "configurable" in config else {}

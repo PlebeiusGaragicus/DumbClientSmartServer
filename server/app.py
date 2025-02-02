@@ -143,7 +143,7 @@ async def stream(request: StreamRequest):
         return JSONResponse(status_code=404, content={"message": "Agent not found"})
     
     # print("STREAM: ", agent)
-    logger.debug("STREAM: ", agent)
+    logger.debug(agent)
     # print(request)
     logger.debug(request)
 

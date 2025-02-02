@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 class State(BaseModel):
     query: str = Field(
-        "Tell me about ",
+        "translate `I'm hungry` to german",
         description="What do you want to research?"
     )
 

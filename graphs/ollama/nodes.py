@@ -1,35 +1,18 @@
 from langchain_core.runnables import RunnableConfig
-from langgraph.graph.state import StateGraph, RunnableConfig
+from langchain_core.messages import HumanMessage
 from langchain_ollama import ChatOllama
 
-from .config import Configuration, OLLAMA_HOST
+
+
+from .config import OllamaConfig, OLLAMA_HOST
 from .state import State
 
 
 
-def check_for_command(state: State, config: RunnableConfig):
-    # check if the last message starts with a '/'
-    if state.messages[-1].content.startswith("/"):
-        return True
-    return False
 
-
-
-def handle_command(state: State, config: RunnableConfig):
-    # configurable = Configuration.from_runnable_config(config)
-
-    # extract command
-    split = state.messages[-1].content.split(" ")
-    command = split[0][1:].lower() # Remove the slash and take the first word
-    arguments = split[1:]
-    command_result = configurable.commands[command]()
-
-    return {"messages": [{"role": "assistant", "content": command_result}]}
-
-
-
+############################################################################
 def chatbot(state: State, config: RunnableConfig):
-    configurable = Configuration.from_runnable_config(config)
+    configurable = OllamaConfig.from_runnable_config(config)
 
     llm = ChatOllama(
         model=configurable.model,
@@ -39,9 +22,10 @@ def chatbot(state: State, config: RunnableConfig):
     )
 
     # The messages are already LangChain message objects, use them directly
-    response = llm.stream(state.messages)
+    messages = state.messages
+    # append user query to messages
+    messages.append(HumanMessage(content=state.query))
+
+    response = llm.stream(messages)
 
     return {"messages": [{"role": "assistant", "content": chunk.content} for chunk in response]}
-
-
-############################################################################

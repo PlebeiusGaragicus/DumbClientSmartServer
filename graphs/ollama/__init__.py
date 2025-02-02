@@ -1,7 +1,7 @@
-from .graph import graph, State, Configuration
+from .graph import graph, State, OllamaConfig
 
 __all__ = [
     "graph",
     "State",
-    "Configuration"
+    "OllamaConfig"
 ]

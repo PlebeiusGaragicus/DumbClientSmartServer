@@ -56,7 +56,7 @@ AGENTS = [
         info="These models are all run locally!",
         version="0.7.0",
         input_schema=graphs.ollama.State,
-        config_schema=graphs.ollama.Configuration,
+        config_schema=graphs.ollama.OllamaConfig,
         graph=graphs.ollama.graph,
     ),
 # TODO: add more graphs here

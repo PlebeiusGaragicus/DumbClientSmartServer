@@ -1,5 +1,38 @@
 import json
 
+from langchain_core.runnables import RunnableConfig
+
+from .config import OllamaConfig
+from .state import State
+
+
+def check_for_command(state: State, config: RunnableConfig):
+    configurable = OllamaConfig.from_runnable_config(config)
+
+    if configurable.disable_commands:
+        return False
+
+    # check if the last message starts with a '/'
+    if state.query.startswith("/"):
+        return True
+    return False
+
+
+
+def handle_command(state: State, config: RunnableConfig):
+    # configurable = OllamaConfig.from_runnable_config(config)
+
+    # extract command
+    split = state.query.split(" ")
+    # Remove the slash and take the first word
+    command = split[0][1:].lower()
+    arguments = split[1:]
+
+    return {"messages": [{"role": "assistant", "content": f"Command: {command} with arguments {arguments}"}]}
+
+
+
+
 # Markdown text to explain this construct
 CONSTRUCT_INFORMATION = """
 **Chatbot Agent**
