@@ -277,7 +277,6 @@ def main():
         st.session_state.message_history = []
     
 
-
     # Create the input form
     form_key = f"agent_form_{selected_agent}"
     submitted_data = pydantic_form(

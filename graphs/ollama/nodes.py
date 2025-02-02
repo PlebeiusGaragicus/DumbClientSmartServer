@@ -24,7 +24,8 @@ def chatbot(state: State, config: RunnableConfig):
     # The messages are already LangChain message objects, use them directly
     messages = state.messages
     # append user query to messages
-    messages.append(HumanMessage(content=state.query))
+    #NOTE: we don't do this anymore - it's done in the UI
+    # messages.append(HumanMessage(content=state.query))
 
     response = llm.stream(messages)
 

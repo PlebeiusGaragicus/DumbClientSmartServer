@@ -22,23 +22,22 @@ class ServedGraph:
 
 # Import all the graphs
 import graphs.echobot
-import graphs.dudebot
 import graphs.ollama
 # TODO: import your new graphs here
 
 
 # These are the agents that are served by our agent server
 AGENTS = [
-    # ServedGraph(
-    #     id="echobot",
-    #     name="Echo bot",
-    #     placeholder="Hello, World!",
-    #     info="holler back",
-    #     version="0.99.1",
-    #     input_schema=graphs.echobot.InputSchema,
-    #     config_schema=graphs.echobot.ConfigSchema,
-    #     graph=graphs.echobot.graph,
-    # ),
+    ServedGraph(
+        id="echobot",
+        name="Echo bot",
+        placeholder="Hello, World!",
+        info="holler back",
+        version="0.99.1",
+        input_schema=graphs.echobot.State,
+        config_schema=graphs.echobot.Config,
+        graph=graphs.echobot.graph,
+    ),
     # ServedGraph(
     #     id="dudebot",
     #     name="Dude bot",
