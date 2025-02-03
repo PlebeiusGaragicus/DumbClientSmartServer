@@ -20,7 +20,7 @@ class ServedGraph:
 
 
 # Import all the graphs
-import graphs.echobot
+# import graphs.echobot
 import graphs.ollama
 import graphs.research
 # TODO: import your new graphs here
@@ -32,18 +32,18 @@ AGENTS = [
         id="ollama",
         name="Ollama",
         placeholder="Ask the 🦙",
-        info="These models are all run locally!",
-        version="0.7.0",
+        info=graphs.ollama.DESCRIPTION,
+        version=graphs.ollama.VERSION,
         input_schema=graphs.ollama.State,
-        config_schema=graphs.ollama.OllamaConfig,
+        config_schema=graphs.ollama.Config,
         graph=graphs.ollama.graph,
     ),
     ServedGraph(
         id="researchrabbit",
         name="Research Rabbit",
         placeholder="Ask the rabbit...",
-        info="Work in progress!",
-        version="0.1.1",
+        info=graphs.research.DESCRIPTION,
+        version=graphs.research.VERSION,
         input_schema=graphs.research.SummaryState,
         config_schema=graphs.research.Configuration,
         graph=graphs.research.graph,
@@ -53,19 +53,19 @@ AGENTS = [
 
 
 ## NOTE: DEBUG ONLY - this is our "echobot" we can use for testing
-if os.getenv("DEBUG", None):
-    AGENTS.append(
-        ServedGraph(
-            id="echobot",
-            name="Echo bot",
-            placeholder="Hello, World!",
-            info="holler back",
-            version="0.99.1",
-            input_schema=graphs.echobot.State,
-            config_schema=graphs.echobot.Config,
-            graph=graphs.echobot.graph,
-        )
-    )
+# if os.getenv("DEBUG", None):
+#     AGENTS.append(
+#         ServedGraph(
+#             id="echobot",
+#             name="Echo bot",
+#             placeholder="Hello, World!",
+#             info=graphs.echobot.DESCRIPTION,
+#             version=graphs.echobot.VERSION,
+#             input_schema=graphs.echobot.State,
+#             config_schema=graphs.echobot.Config,
+#             graph=graphs.echobot.graph,
+#         )
+#     )
 
 
 # NOTE: we are going to export only the AGENTS variable

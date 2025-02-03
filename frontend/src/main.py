@@ -33,8 +33,11 @@ def display_agent_info(info: Dict[str, Any]) -> None:
         info (Dict[str, Any]): Agent information dictionary
     """
     # st.write(f"Version: {info['version']}")
-    st.caption(f":green[**Version:**] `{info['version']}`")
-    st.caption(f":blue[**Description:**] {info['info']}")
+    # st.caption(f":blue[**Description:**] {info['info']}")
+    # st.write(f":blue[**Description:**]")
+    st.write(info['info'])
+    # st.divider()
+    # st.caption(f":green[**Version:**] `{info['version']}`")
 
 @st.dialog("Agent Configuration")
 def show_config_dialog(selected_agent: str, ConfigModel: Any) -> None:
@@ -195,12 +198,18 @@ def main():
 
     with st.container(border=True):
         agent_names = [agent["data"]["name"] for agent in st.session_state.agents]
-        selected_agent_name = st.radio(
+        selected_agent_name = st.segmented_control(
             "Select an Agent",
             options=agent_names,
-            horizontal=True,
+            default=agent_names[0],
             label_visibility="collapsed"
         )
+        # selected_agent_name = st.radio(
+        #     "Select an Agent",
+        #     options=agent_names,
+        #     horizontal=True,
+        #     label_visibility="collapsed"
+        # )
 
     # Map display name back to id
     selected_agent = next(agent["data"]["id"] 
@@ -263,14 +272,14 @@ def main():
         st.session_state.show_config_dialog = False
 
     with st.sidebar:
+        st.markdown("# :rainbow[PlebChat] 🗣️🤖💬")
         if st.button("⚙️ Configure", use_container_width=True):
             show_config_dialog(selected_agent, ConfigModel)
 
-    # Display agent info
-    with st.sidebar:
         with st.container(border=True):
             display_agent_info(agent_data["data"])
 
+        st.divider()
 
     # Initialize message history in session state if it doesn't exist
     if "message_history" not in st.session_state:
@@ -293,13 +302,14 @@ def main():
         st.chat_message("user").write(submitted_data.query)
 
         with st.sidebar:
-            st.write("Submitted data:", submitted_data)
-            config = st.session_state[f"config_{selected_agent}"]
-            if isinstance(config, dict):
-                # Convert dict to model instance if needed
-                config = ConfigModel(**config)
-                st.session_state[f"config_{selected_agent}"] = config
-            st.write("Using configuration:", config)
+            with st.expander("Submitted to graph:"):
+                st.write("Submitted data:", submitted_data)
+                config = st.session_state[f"config_{selected_agent}"]
+                if isinstance(config, dict):
+                    # Convert dict to model instance if needed
+                    config = ConfigModel(**config)
+                    st.session_state[f"config_{selected_agent}"] = config
+                st.write("Using configuration:", config)
 
         # Handle the streaming response
         handle_stream_response(selected_agent, submitted_data, config, InputModel)

@@ -1,108 +1,235 @@
+import os
 import json
 
-from langchain_core.runnables import RunnableConfig
+import logging
+logger = logging.getLogger(__name__)
 
-from .config import OllamaConfig
-from .state import State
-
-
-def _check_for_command(state: State, config: RunnableConfig):
-    """
-        Check if the last message starts with a '/'.
-        This function is used as a conditional edge in our graph
-        This function is prefixed with a '_' so that it's progress doesn't show in the frontend
-    """
-    configurable = OllamaConfig.from_runnable_config(config)
-
-    if configurable.disable_commands:
-        return False
-
-    # check if the last message starts with a '/'
-    if state.query.startswith("/"):
-        return True
-    return False
+from .VERSION import VERSION
 
 
+class CommandHandler:
+    @classmethod
+    def _run(cls, command: str, arguments: str):
+        """Handle a command and its arguments.
+        
+        Args:
+            command: The command name without the leading slash
+            arguments: String arguments for the command
+        """
+        # Try to get the method corresponding to the command
+        method = getattr(cls, command, None)
 
-def handle_command(state: State, config: RunnableConfig):
-    # configurable = OllamaConfig.from_runnable_config(config)
+        # If method exists and is callable, invoke it
+        if callable(method) and not command.startswith('_'):
+            return method(arguments)
+        else:
+            return f"""# ⛓️‍💥\n`/{command}` command not found!\n## Commands available:\n{cls.help()}"""
 
-    # extract command
-    split = state.query.split(" ")
-    # Remove the slash and take the first word
-    command = split[0][1:].lower()
-    arguments = split[1:]
+####################################################################################
+    @classmethod
+    def help(cls, args):
+        """Get a list of commands."""
+        # Generate usage text from available methods with a docstring
+        command_list = [
+            method for method in dir(cls)
+            if callable(getattr(cls, method)) and not method.startswith("_")
+        ]
+        # Only show admin commands to admins
+        command_list = [cmd for cmd in command_list if not cmd.endswith("_")]
 
-    return {"messages": [{"role": "assistant", "content": f"Command: {command} with arguments {arguments}"}]}
+
+        # Format as markdown with clear sections
+        command_docs = []
+        for cmd in sorted(command_list):
+            doc = getattr(cls, cmd).__doc__ or "No description available."
+            command_docs.append(f"- `/{cmd}` - {doc}")
 
 
+        return f"""# 🤖 Available Commands
+
+{chr(10).join(command_docs)}
 
 
-# Markdown text to explain this construct
-CONSTRUCT_INFORMATION = """
-**Chatbot Agent**
-
-Hi, I'm just some agent dude...
-
-Try `/usage` for a list of commands.
+Type any command to use it. For example: `/hi`
 """
 
 
-# Markdown text to explain the commands available
-USAGE = """
-/version                  Get the version of the agent
+####################################################################################
+    @classmethod
+    def cuss(cls, args):
+        """Let off some steam... 😡"""
+        return "fuck\n\nteehee"
 
-/info, /about             Get information about the agent
+####################################################################################
+    @classmethod
+    def version(cls, args):
+        return VERSION
 
-/help, /usage             Get a list of commands
+####################################################################################
+    @classmethod
+    def hi(cls, args):
+        """Tell the bot to say hello to you."""
+        return f"""👋 Hi there!
 
-/random [digits]          Get a random number (1-100 by default, or with specified digits)
+You must be the `pleb` I've heard so much about...
+
+I'm `Ollama`.  I'm just a simple chatbot agent.
+
+Type `/about` to learn more.
+
+Type `/help` to see a list of commands.
+
+Or, just start asking questions!  I'm here to help.
+"""
+
+####################################################################################
+    @classmethod
+    def about(cls, args):
+        """Get information about the agent."""
+        return """
+I am proof of concept LangGraph agent that accepts direct bitcoin payments from users.
+
+I aim to be a useful assistant that anyone can use anonymously.
+
+There's a lot I can do with more features being added all the time!
+
+Try `/help` for a list of commands.
+
+Here's my [source code on GitHub](https://github.com/PlebeiusGaragicus/PlebChatDocker)
+
+Send me a message on nostr to chat about issues, features you'd like to see or anything AI-related.
+
+```txt
+npub1xegedgkkjf24pl4d76cdwhufacng5hapzjnrtgms3pyhlvmyqj9suym08k
+```
 """
 
 
+####################################################################################
+# KEEP THIS
+    # def usage(self, request, *args):
+    #     """Track your **token usage** for this conversation."""
 
-def handle_commands(request):
-    split = request.user_message.split(" ")
-    command = split[0][1:].lower() # Remove the slash and take the first word
-    arguments = split[1:]
+    #     is_admin = request.body['user']['role'] == 'admin'
+    #     if is_admin:
+    #         return "You're a system administrator - I don't track your usage!\nYou can use me for free!"
+
+    #     lud16 = request.body['user']['email']
+    #     if not lud16:
+    #         return "⚠️ No user LUD16 provided."
+
+    #     thread_id = request.body['chat_id']
+    #     if not thread_id:
+    #         return "⚠️ No thread ID provided."
+
+    #     try:
+    #         from .payment import get_usage
+    #         usage = get_usage(lud16, thread_id)
+    #         return f"User: `{lud16}`\nThread: `{thread_id}`\nYou have used: **`{0 if not usage else usage}`** generation tokens in this conversation."
+    #     except Exception as e:
+    #         return f"Error checking usage: {e}"
+
+####################################################################################
+    @classmethod
+    def url(cls, args=None):
+        # TODO: charge the user for this feature!!
+        """**Copy an article** or website by providing the URL.  `/url https://example.com/articles/298302`"""
+        url = args if args else "No URL provided"
+        return f"Scraping content from {url}"
+
+# def url(request):
+#     split = request.user_message.split(" ")
+#     first_arg = split[1] if len(split) > 1 else None
+
+#     if not first_arg:
+#         return "⚠️ Please provide a URL.\n\n**Example:**\n```\n/url https://example.com\n```"
+
+#     if first_arg.startswith("http://"):
+#         return f"⚠️ The URL must start with `https://`\n\n**Example:**\n```\n/url https://example.com\n```"
+
+#     if not first_arg.startswith("https://"):
+#         first_arg = f"https://{first_arg}"
+
+#     return f"""
+# This command will scrape the provided url and reply with the "readability" text.
+
+# This way, the contents of the url can be injected into the context of the conversation and can be discussed, summariezed, etc.
+
+# This is a placeholder for the implementation of the url command.
+
+# The URL you provided is: {first_arg}
+
+# [Click here to view the content of the URL]({first_arg})
+
+# The content of the URL will be displayed here.
+# """
+# #NOTE: providing just the url link like so:
+# # [Click here to view the content of the URL]({first_arg})
+# # will prepend the base url/c/ so that we can link TO CONVERSATIONS!!! WOW!
 
 
-######################################
-    if command == "version":
-        from .VERSION import VERSION
-        yield format_sse_message(f"Version `{VERSION}`")
 
-    elif command == "info" or command == "about":
-        yield format_sse_message(CONSTRUCT_INFORMATION)
-
-    elif command == "usage" or command == "help":
-        # Send entire usage text as a single event
-        response = f"Available commands:\n```\n{USAGE.strip()}```"
-        yield format_sse_message(response)
-    
-    elif command == "random":
+####################################################################################
+    @classmethod
+    def random(cls, args=None):
+        """Generate a random number. Optionally specify number of digits."""
         import random
         # If no argument provided, return random number between 1-100
-        if len(arguments) == 0:
+        if args is None:
             random_number = random.randint(1, 100)
-            yield format_sse_message(f"`{random_number}`")
+            return random_number
         else:
             try:
-                digits = int(arguments[0])
+                digits = int(args)
                 random_number = random.randint(1, 10**digits)
-                # yield format_sse_message(f"Random number: {random_number}")
-                yield format_sse_message(f"`{random_number}`")
+                return random_number
             except ValueError:
-                yield format_sse_message("Invalid number of digits. Please provide a single integer.")
+                return "Invalid number of digits. Please provide a single integer."
+
+####################################################################################
+    @classmethod
+    def readability(cls, args=None):
+        return "Not yet implemented"
+#     # TODO: I want to consider charging the user for intensive commands like this...
+#     split = request.user_message.split(" ")
+#     first_arg = split[1] if len(split) > 1 else None
+
+#     #TODO: modularize this code.  Maybe have a _ensure_proper_url() function that can be reused in other commands.
+#     if not first_arg:
+#         return "⚠️ Please provide a URL.\n\n**Example:**\n```\n/article https://example.com\n```"
+
+#     if first_arg.startswith("http://"):
+#         return f"⚠️ The URL must start with `https://`\n\n**Example:**\n```\n/article https://example.com\n```"
+
+#     if not first_arg.startswith("https://"):
+#         first_arg = f"https://{first_arg}"
+
+#     try:
+#         from readability import Document
+#         # url = "https://tftc.io/home-and-car-insurance-providers-retreating/"
+#         # response = requests.get( url )
+#         response = requests.get( first_arg )
+#         doc = Document(response.content)
+
+#         article_markdown_contents = f""
+
+#         article_markdown_contents += doc.title()
+#         article_markdown_contents += doc.summary()
+#         article_markdown_contents += doc.content()
 
 
-    # elif command == "debug":
-    #     debug_info = f"# body:\n```json\n{json.dumps(request.body, indent=4)}\n```\n# model_id:"
-    #     yield format_sse_message(debug_info)
 
+#         return f"""
+# This command will scrape the provided url and reply with a summary of the content.
 
+# The URL you provided is: {first_arg}
 
-######################################
-    else:
-        response = f"Command not found.\nAvailable commands:\n```\n{USAGE.strip()}```"
-        yield format_sse_message(response)
+# Here's the article:
+
+# ---
+
+# {article_markdown_contents}
+# """
+
+#     except Exception as e:
+#         return f"""error in scraping this URL: {e}"""
