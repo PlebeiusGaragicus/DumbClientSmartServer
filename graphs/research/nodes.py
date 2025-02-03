@@ -16,11 +16,11 @@ OLLAMA_HOST = "http://host.docker.internal:11434"
 ## HELPER FUNCTIONS
 def get_llm(config: RunnableConfig):
     configurable = Configuration.from_runnable_config(config)
-    return ChatOllama(model=configurable.model, temperature=0, base_url=OLLAMA_HOST)
+    return ChatOllama(model=configurable.local_llm, temperature=0, base_url=OLLAMA_HOST)
 
 def get_llm_json_mode(config: RunnableConfig):
     configurable = Configuration.from_runnable_config(config)
-    return ChatOllama(model=configurable.model, temperature=0, format="json", base_url=OLLAMA_HOST)
+    return ChatOllama(model=configurable.local_llm, temperature=0, format="json", base_url=OLLAMA_HOST)
 
 
 
@@ -29,7 +29,7 @@ query_writer_instructions="""Your goal is to generate targeted web search query.
 The query will gather information related to a specific topic.
 
 Topic:
-{research_topic}
+{query}
 
 Return your query as a JSON object:
 {{
@@ -42,7 +42,7 @@ def generate_query(state: SummaryState, config: RunnableConfig):
     """ Generate a query for web search """
     
     # Format the prompt
-    query_writer_instructions_formatted = query_writer_instructions.format(research_topic=state.research_topic)
+    query_writer_instructions_formatted = query_writer_instructions.format(query=state.query)
 
     llm_json_mode = get_llm_json_mode(config)
 
@@ -107,12 +107,12 @@ def summarize_sources(state: SummaryState, config: RunnableConfig):
         human_message_content = (
             f"Extend the existing summary: {existing_summary}\n\n"
             f"Include new search results: {most_recent_web_research} "
-            f"That addresses the following topic: {state.research_topic}"
+            f"That addresses the following topic: {state.query}"
         )
     else:
         human_message_content = (
             f"Generate a summary of these search results: {most_recent_web_research} "
-            f"That addresses the following topic: {state.research_topic}"
+            f"That addresses the following topic: {state.query}"
         )
 
     llm = get_llm(config)
@@ -126,7 +126,7 @@ def summarize_sources(state: SummaryState, config: RunnableConfig):
     return {"running_summary": running_summary}
 
 
-reflection_instructions = """You are an expert research assistant analyzing a summary about {research_topic}.
+reflection_instructions = """You are an expert research assistant analyzing a summary about {query}.
 
 Your tasks:
 1. Identify knowledge gaps or areas that need deeper exploration
@@ -147,7 +147,7 @@ def reflect_on_summary(state: SummaryState, config: RunnableConfig):
 
     # Generate a query
     result = llm_json_mode.invoke(
-        [SystemMessage(content=reflection_instructions.format(research_topic=state.research_topic)),
+        [SystemMessage(content=reflection_instructions.format(query=state.query)),
         HumanMessage(content=f"Identify a knowledge gap and generate a follow-up web search query based on our existing knowledge: {state.running_summary}")]
     )   
     follow_up_query = json.loads(result.content)

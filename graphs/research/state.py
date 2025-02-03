@@ -14,7 +14,7 @@ from langchain_core.runnables import RunnableConfig
 
 class SummaryState(BaseModel):
     # Report topic
-    research_topic: str = Field(default=None)
+    query: str = Field(default=None)
     
     # Search query
     search_query: str = Field(default=None)
@@ -34,7 +34,7 @@ class SummaryState(BaseModel):
 
 # Report topic
 class SummaryStateInput(BaseModel):
-    research_topic: str = Field(default=None)
+    query: str = Field(default=None)
 
 # Final report
 class SummaryStateOutput(BaseModel):
@@ -67,14 +67,27 @@ class Configuration(BaseModel):
     @classmethod
     def from_runnable_config(
         cls, config: Optional[RunnableConfig] = None
-    ) -> "Configuration":
+    ) -> "Config":
         """Create a Configuration instance from a RunnableConfig."""
         configurable = (
             config["configurable"] if config and "configurable" in config else {}
         )
         values: dict[str, Any] = {
-            f.name: os.environ.get(f.name.upper(), configurable.get(f.name))
-            for f in fields(cls)
-            if f.init
+            name: os.environ.get(name.upper(), configurable.get(name))
+            for name in cls.model_fields.keys()
         }
         return cls(**{k: v for k, v in values.items() if v})
+    # NOTE: keep
+    # def from_runnable_config(
+    #     cls, config: Optional[RunnableConfig] = None
+    # ) -> "Configuration":
+    #     """Create a Configuration instance from a RunnableConfig."""
+    #     configurable = (
+    #         config["configurable"] if config and "configurable" in config else {}
+    #     )
+    #     values: dict[str, Any] = {
+    #         f.name: os.environ.get(f.name.upper(), configurable.get(f.name))
+    #         for f in fields(cls)
+    #         if f.init
+    #     }
+    #     return cls(**{k: v for k, v in values.items() if v})

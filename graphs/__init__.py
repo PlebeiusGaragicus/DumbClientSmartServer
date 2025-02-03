@@ -44,7 +44,7 @@ AGENTS = [
         placeholder="Ask the rabbit...",
         info=graphs.research.DESCRIPTION,
         version=graphs.research.VERSION,
-        input_schema=graphs.research.SummaryState,
+        input_schema=graphs.research.SummaryStateInput,
         config_schema=graphs.research.Configuration,
         graph=graphs.research.graph,
     ),
