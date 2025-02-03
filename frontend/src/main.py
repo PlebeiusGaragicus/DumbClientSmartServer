@@ -22,7 +22,9 @@ DEFAULT_AGENT_INDEX = 0
 
 
 
-
+def new_thread():
+    st.session_state.messages = []
+    st.toast("New thread!")
 
 
 ##############################################################################
@@ -64,26 +66,32 @@ def show_config_dialog(selected_agent: str, ConfigModel: Any) -> None:
     )
     if config_data:
         st.session_state[f"config_{selected_agent}"] = config_data
-        st.session_state.show_config_dialog = False
         st.rerun()
 
-def handle_stream_response(selected_agent: str, input_data: Dict[str, Any], config: Dict[str, Any], InputModel: Any) -> None:
+# def handle_stream_response(selected_agent: str, input_data: Dict[str, Any], config: Dict[str, Any], InputModel: Any) -> None:
+def handle_stream_response(selected_agent: str, query: str, config: Dict[str, Any]) -> None:
     """Handle streaming response from the agent.
     
     Args:
         selected_agent (str): The ID of the selected agent
-        input_data (Dict[str, Any]): The input data from the form
+        query (str): The query from the form
         config (Dict[str, Any]): The configuration for the agent
         InputModel (Any): The Pydantic model class for the input data
     """
     try:
-        st.session_state.message_history.append(
-            {"role": "human", "content": input_data.query}
-        )
+        # st.session_state.message_history.append(
+        #     {"role": "human", "content": query}
+        # )
 
         # Create a proper InputModel with query and message history
-        input_data_dict = input_data.model_dump()
-        input_data_dict["messages"] = st.session_state.message_history
+        # input_data_dict = input_data.model_dump()
+        # input_data_dict["messages"] = st.session_state.message_history
+
+        # New simplified input data
+        input_data_dict = {
+            "query": query,
+            "messages": st.session_state.message_history
+        }
 
         # Prepare the request payload
         payload = {
@@ -150,8 +158,12 @@ def handle_stream_response(selected_agent: str, input_data: Dict[str, Any], conf
 
                         if event.endswith("_end"):
                             with st.sidebar:
-                                with st.expander("data"):
-                                    st.json(data)
+                                with st.expander("Node output:"):
+                                    try:
+                                        st.json(data['output'])
+                                    except Exception as e:
+                                        st.json(data)
+
 
                         # message_placeholder.write(full_response + "|")
 
@@ -188,6 +200,11 @@ def handle_stream_response(selected_agent: str, input_data: Dict[str, Any], conf
 def main():
     logger.info("Starting frontend")
 
+    st.set_page_config(
+        page_title="DumbClientSmartServer",
+        layout="wide"
+    )
+
     if st.session_state.get("DEBUG", None) is None:
         st.session_state.debug = os.getenv("DEBUG", False)
 
@@ -196,20 +213,20 @@ def main():
         print("DEBUG --- GETTING AGENTS GETTING AGENTS GETTING AGENTS")
         st.session_state.agents = get_agents()
 
-    with st.container(border=True):
-        agent_names = [agent["data"]["name"] for agent in st.session_state.agents]
-        selected_agent_name = st.segmented_control(
-            "Select an Agent",
-            options=agent_names,
-            default=agent_names[0],
-            label_visibility="collapsed"
-        )
-        # selected_agent_name = st.radio(
-        #     "Select an Agent",
-        #     options=agent_names,
-        #     horizontal=True,
-        #     label_visibility="collapsed"
-        # )
+    # with st.container(border=True):
+    agent_names = [agent["data"]["name"] for agent in st.session_state.agents]
+    selected_agent_name = st.segmented_control(
+        "Select an Agent",
+        options=agent_names,
+        default=agent_names[0],
+        label_visibility="collapsed",
+        on_change=new_thread
+    )
+
+    if not selected_agent_name:
+        #TODO: perhaps we should have this be the default view when the user visits the site
+        st.write("Select an agent.")
+        st.stop()
 
     # Map display name back to id
     selected_agent = next(agent["data"]["id"] 
@@ -220,30 +237,30 @@ def main():
     agent_data = next(a for a in st.session_state.agents if a["data"]["id"] == selected_agent)
 
     # Get the schemas
-    input_schema = agent_data["schema"]["input"]
+    # input_schema = agent_data["schema"]["input"] # we are now agnostic to the input schema - just use 'query' and 'messages'
     config_schema = agent_data["schema"]["config"]
     schema_defs = agent_data["schema"]
 
     # Create both input and config models
-    InputModel = create_dynamic_model(
-        agent_name=f"{selected_agent}_input",
-        input_schema=input_schema,
-        schema_defs=schema_defs
-    )
+    # InputModel = create_dynamic_model(
+    #     agent_name=f"{selected_agent}_input",
+    #     input_schema=input_schema,
+    #     schema_defs=schema_defs
+    # )
 
     # Create a copy of the input schema without the messages field
-    input_schema_without_messages = input_schema.copy()
-    if "properties" in input_schema_without_messages:
-        properties = input_schema_without_messages["properties"].copy()
-        if "messages" in properties:
-            del properties["messages"]
-        input_schema_without_messages["properties"] = properties
+    # input_schema_without_messages = input_schema.copy()
+    # if "properties" in input_schema_without_messages:
+    #     properties = input_schema_without_messages["properties"].copy()
+    #     if "messages" in properties:
+    #         del properties["messages"]
+    #     input_schema_without_messages["properties"] = properties
 
-    InputModel_withoutmessages = create_dynamic_model(
-        agent_name=f"{selected_agent}_input_nomessages",
-        input_schema=input_schema_without_messages,
-        schema_defs=schema_defs
-    )
+    # InputModel_withoutmessages = create_dynamic_model(
+    #     agent_name=f"{selected_agent}_input_nomessages",
+    #     input_schema=input_schema_without_messages,
+    #     schema_defs=schema_defs
+    # )
 
     ConfigModel = create_dynamic_model(
         agent_name=f"{selected_agent}_config",
@@ -268,9 +285,6 @@ def main():
         # Initialize with default config
         st.session_state[f"config_{selected_agent}"] = ConfigModel(**defaults)
 
-    if "show_config_dialog" not in st.session_state:
-        st.session_state.show_config_dialog = False
-
     with st.sidebar:
         st.markdown("# :rainbow[PlebChat] 🗣️🤖💬")
         if st.button("⚙️ Configure", use_container_width=True):
@@ -287,37 +301,56 @@ def main():
     
 
     # Create the input form
-    form_key = f"agent_form_{selected_agent}"
-    submitted_data = pydantic_form(
-        key=form_key,
-        model=InputModel_withoutmessages,
-        submit_label="Send",
-        clear_on_submit=True
-    )
+    # form_key = f"agent_form_{selected_agent}"
+    # submitted_data = pydantic_form(
+    #     key=form_key,
+    #     model=InputModel_withoutmessages,
+    #     submit_label="Send",
+    #     clear_on_submit=True
+    # )
 
     for message in st.session_state.message_history:
-        st.chat_message(message["role"]).write(message["content"])
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-    if submitted_data:
-        st.chat_message("user").write(submitted_data.query)
+    # if submitted_data:
+    #     st.chat_message("user").write(submitted_data.query)
+    selected_agent_stuff = next(agent for agent in st.session_state.agents if agent["data"]["name"] == selected_agent_name)
+    agent_placeholder = selected_agent_stuff["data"]["placeholder"]
+
+    if prompt := st.chat_input(placeholder=agent_placeholder, key="query"):
+        st.session_state.message_history.append({"role": "user", "content": prompt})
+
+        with st.chat_message("user"):
+            st.markdown(prompt)
 
         with st.sidebar:
             with st.expander("Submitted to graph:"):
-                st.write("Submitted data:", submitted_data)
+                # st.write("Submitted data:", submitted_data)
+                st.write(f"`query:` {prompt}")
+                st.write(f"`Messages:`", st.session_state.message_history)
                 config = st.session_state[f"config_{selected_agent}"]
                 if isinstance(config, dict):
                     # Convert dict to model instance if needed
                     config = ConfigModel(**config)
                     st.session_state[f"config_{selected_agent}"] = config
-                st.write("Using configuration:", config)
+                st.write("`configuration:`", config)
 
         # Handle the streaming response
-        handle_stream_response(selected_agent, submitted_data, config, InputModel)
+        # handle_stream_response(selected_agent, submitted_data, config, InputModel)
+        handle_stream_response(selected_agent, prompt, config)
 
+    if len(st.session_state.message_history):
+        if st.button(":grey[:material/undo: Undo last message]", type="tertiary"):
+            st.session_state.message_history = st.session_state.message_history[:-2]
+            st.rerun()
 
     ##########################################################
-    if st.session_state.debug:
-        with st.sidebar:
-            with st.expander("DEBUG"):
-                st.write(st.session_state)
+    @st.dialog("session_state", width="large")
+    def debug_dialog():
+        st.write(st.session_state)
+    with st.sidebar:
+        if st.button("🪲 :orange[Debug]", use_container_width=True):
+            debug_dialog()
 ##############################################################################
+

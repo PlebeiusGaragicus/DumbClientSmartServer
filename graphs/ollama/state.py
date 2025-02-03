@@ -26,11 +26,11 @@ class State(BaseModel):
     #     le=3,
     #     description="How intense the dude transformation should be (1-3)"
     # )
-    draft: str = Field(
-        "",
-        format="multi-line",
-        description="Current state of the draft"
-    )
+    # draft: str = Field(
+    #     "",
+    #     format="multi-line",
+    #     description="Current state of the draft"
+    # )
 
 class Result(BaseModel):
     reply: str
