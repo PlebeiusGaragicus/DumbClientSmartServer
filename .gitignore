@@ -6,6 +6,6 @@ venv/
 auth.yaml
 secrets.toml
 
-output.md
-
 *.json
+
+output/
