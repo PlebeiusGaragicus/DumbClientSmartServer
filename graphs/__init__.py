@@ -30,8 +30,8 @@ import graphs.research
 AGENTS = [
     ServedGraph(
         id="ollama",
-        name="Ollama",
-        placeholder="Ask the 🦙",
+        name=":orange[Ollama] 🦙",
+        placeholder="Ask the Llama! 🦙",
         info=graphs.ollama.DESCRIPTION,
         version=graphs.ollama.VERSION,
         input_schema=graphs.ollama.State,
@@ -40,8 +40,8 @@ AGENTS = [
     ),
     ServedGraph(
         id="researchrabbit",
-        name="Research Rabbit",
-        placeholder="Ask the rabbit...",
+        name=":green[Research Rabbit] 🐇",
+        placeholder="What should the rabbit look up for you? 🐇",
         info=graphs.research.DESCRIPTION,
         version=graphs.research.VERSION,
         input_schema=graphs.research.SummaryStateInput,

@@ -23,21 +23,24 @@ DEFAULT_AGENT_INDEX = 0
 
 
 def new_thread():
-    st.session_state.messages = []
-    st.toast("New thread!")
+    st.session_state.message_history = []
+    # st.toast("New thread!")
 
 
 ##############################################################################
+@st.dialog("Agent Information", width="large")
 def display_agent_info(info: Dict[str, Any]) -> None:
     """Display agent information in the Streamlit interface.
     
     Args:
         info (Dict[str, Any]): Agent information dictionary
     """
+    with st.container(border=True):
+        st.write(info['info'])
+
     # st.write(f"Version: {info['version']}")
     # st.caption(f":blue[**Description:**] {info['info']}")
     # st.write(f":blue[**Description:**]")
-    st.write(info['info'])
     # st.divider()
     # st.caption(f":green[**Version:**] `{info['version']}`")
 
@@ -213,6 +216,8 @@ def main():
         print("DEBUG --- GETTING AGENTS GETTING AGENTS GETTING AGENTS")
         st.session_state.agents = get_agents()
 
+    st.markdown("# :rainbow[PlebChat] 🗣️🤖💬")
+
     # with st.container(border=True):
     agent_names = [agent["data"]["name"] for agent in st.session_state.agents]
     selected_agent_name = st.segmented_control(
@@ -225,8 +230,11 @@ def main():
 
     if not selected_agent_name:
         #TODO: perhaps we should have this be the default view when the user visits the site
-        st.write("Select an agent.")
+        st.success("Select an agent.", icon="👆")
+        with st.sidebar:
+            st.write("") # this ensures the sidebar stays visible
         st.stop()
+
 
     # Map display name back to id
     selected_agent = next(agent["data"]["id"] 
@@ -236,31 +244,21 @@ def main():
     # Get the selected agent's data and schema
     agent_data = next(a for a in st.session_state.agents if a["data"]["id"] == selected_agent)
 
+    # Initialize message history in session state if it doesn't exist
+    if "message_history" not in st.session_state:
+        st.session_state.message_history = []
+
+    for message in st.session_state.message_history:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # if not len(st.session_state.message_history):
+    with st.container(border=True):
+        st.write(agent_data["data"]["info"])
+
     # Get the schemas
-    # input_schema = agent_data["schema"]["input"] # we are now agnostic to the input schema - just use 'query' and 'messages'
     config_schema = agent_data["schema"]["config"]
     schema_defs = agent_data["schema"]
-
-    # Create both input and config models
-    # InputModel = create_dynamic_model(
-    #     agent_name=f"{selected_agent}_input",
-    #     input_schema=input_schema,
-    #     schema_defs=schema_defs
-    # )
-
-    # Create a copy of the input schema without the messages field
-    # input_schema_without_messages = input_schema.copy()
-    # if "properties" in input_schema_without_messages:
-    #     properties = input_schema_without_messages["properties"].copy()
-    #     if "messages" in properties:
-    #         del properties["messages"]
-    #     input_schema_without_messages["properties"] = properties
-
-    # InputModel_withoutmessages = create_dynamic_model(
-    #     agent_name=f"{selected_agent}_input_nomessages",
-    #     input_schema=input_schema_without_messages,
-    #     schema_defs=schema_defs
-    # )
 
     ConfigModel = create_dynamic_model(
         agent_name=f"{selected_agent}_config",
@@ -286,35 +284,15 @@ def main():
         st.session_state[f"config_{selected_agent}"] = ConfigModel(**defaults)
 
     with st.sidebar:
-        st.markdown("# :rainbow[PlebChat] 🗣️🤖💬")
+        # st.markdown("# :rainbow[PlebChat] 🗣️🤖💬")
+
+        # if st.button("📖 Agent Info", use_container_width=True):
+        #     display_agent_info(agent_data["data"])
+
         if st.button("⚙️ Configure", use_container_width=True):
             show_config_dialog(selected_agent, ConfigModel)
 
-        with st.container(border=True):
-            display_agent_info(agent_data["data"])
 
-        st.divider()
-
-    # Initialize message history in session state if it doesn't exist
-    if "message_history" not in st.session_state:
-        st.session_state.message_history = []
-    
-
-    # Create the input form
-    # form_key = f"agent_form_{selected_agent}"
-    # submitted_data = pydantic_form(
-    #     key=form_key,
-    #     model=InputModel_withoutmessages,
-    #     submit_label="Send",
-    #     clear_on_submit=True
-    # )
-
-    for message in st.session_state.message_history:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    # if submitted_data:
-    #     st.chat_message("user").write(submitted_data.query)
     selected_agent_stuff = next(agent for agent in st.session_state.agents if agent["data"]["name"] == selected_agent_name)
     agent_placeholder = selected_agent_stuff["data"]["placeholder"]
 
@@ -325,6 +303,7 @@ def main():
             st.markdown(prompt)
 
         with st.sidebar:
+            st.header(":green[Graph Execution:]", divider="rainbow")
             with st.expander("Submitted to graph:"):
                 # st.write("Submitted data:", submitted_data)
                 st.write(f"`query:` {prompt}")
@@ -337,7 +316,6 @@ def main():
                 st.write("`configuration:`", config)
 
         # Handle the streaming response
-        # handle_stream_response(selected_agent, submitted_data, config, InputModel)
         handle_stream_response(selected_agent, prompt, config)
 
     if len(st.session_state.message_history):
@@ -350,7 +328,8 @@ def main():
     def debug_dialog():
         st.write(st.session_state)
     with st.sidebar:
+        st.divider()
+
         if st.button("🪲 :orange[Debug]", use_container_width=True):
             debug_dialog()
 ##############################################################################
-
