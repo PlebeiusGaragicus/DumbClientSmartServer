@@ -243,6 +243,9 @@ def main():
 
     # Get the selected agent's data and schema
     agent_data = next(a for a in st.session_state.agents if a["data"]["id"] == selected_agent)
+    # if not len(st.session_state.message_history):
+    with st.container(border=True):
+        st.write(agent_data["data"]["info"])
 
     # Initialize message history in session state if it doesn't exist
     if "message_history" not in st.session_state:
@@ -252,9 +255,6 @@ def main():
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # if not len(st.session_state.message_history):
-    with st.container(border=True):
-        st.write(agent_data["data"]["info"])
 
     # Get the schemas
     config_schema = agent_data["schema"]["config"]
@@ -303,7 +303,7 @@ def main():
             st.markdown(prompt)
 
         with st.sidebar:
-            st.header(":green[Graph Execution:]", divider="rainbow")
+            st.header(":red[Execution Trace:]", divider="rainbow")
             with st.expander("Submitted to graph:"):
                 # st.write("Submitted data:", submitted_data)
                 st.write(f"`query:` {prompt}")

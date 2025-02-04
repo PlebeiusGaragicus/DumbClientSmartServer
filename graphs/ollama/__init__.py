@@ -2,7 +2,8 @@ from .graph import graph, State, Config
 from .VERSION import VERSION
 
 #TODO:
-DESCRIPTION = """### Local Ollama with `commands`
+DESCRIPTION = """
+## :orange[Ollama with `commands`]
 
 Type `/help` to see what I can do!
 """

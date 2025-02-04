@@ -23,11 +23,12 @@ class CommandHandler:
         if callable(method) and not command.startswith('_'):
             return method(arguments)
         else:
-            return f"""# ⛓️‍💥\n`/{command}` command not found!\n## Commands available:\n{cls.help()}"""
+            # return f"""# ⛓️‍💥\n`/{command}` command not found!\n## Commands available:\n{cls.help()}"""
+            return f"""# ⛓️‍💥\n{cls.help()}"""
 
 ####################################################################################
     @classmethod
-    def help(cls, args):
+    def help(cls, args: str = None):
         """Get a list of commands."""
         # Generate usage text from available methods with a docstring
         command_list = [
@@ -41,11 +42,15 @@ class CommandHandler:
         # Format as markdown with clear sections
         command_docs = []
         for cmd in sorted(command_list):
-            doc = getattr(cls, cmd).__doc__ or "No description available."
-            command_docs.append(f"- `/{cmd}` - {doc}")
+            # doc = getattr(cls, cmd).__doc__ or "No description available."
+            doc = getattr(cls, cmd).__doc__ or None
+            if doc:
+                command_docs.append(f"- `/{cmd}` - {doc}")
+            else:
+                command_docs.append(f"- `/{cmd}`")
 
 
-        return f"""# 🤖 Available Commands
+        return f"""### Commands Available
 
 {chr(10).join(command_docs)}
 
@@ -56,18 +61,19 @@ Type any command to use it. For example: `/hi`
 
 ####################################################################################
     @classmethod
-    def cuss(cls, args):
+    def cuss(cls, args: str = None):
         """Let off some steam... 😡"""
         return "fuck\n\nteehee"
 
 ####################################################################################
     @classmethod
-    def version(cls, args):
+    def version(cls, args: str = None):
+        """Return the version of this graph."""
         return VERSION
 
 ####################################################################################
     @classmethod
-    def hi(cls, args):
+    def hi(cls, args: str = None):
         """Tell the bot to say hello to you."""
         return f"""👋 Hi there!
 
@@ -84,7 +90,7 @@ Or, just start asking questions!  I'm here to help.
 
 ####################################################################################
     @classmethod
-    def about(cls, args):
+    def about(cls, args: str = None):
         """Get information about the agent."""
         return """
 I am proof of concept LangGraph agent that accepts direct bitcoin payments from users.
@@ -131,9 +137,9 @@ npub1xegedgkkjf24pl4d76cdwhufacng5hapzjnrtgms3pyhlvmyqj9suym08k
 
 ####################################################################################
     @classmethod
-    def url(cls, args=None):
+    def url(cls, args: str = None):
         # TODO: charge the user for this feature!!
-        """**Copy an article** or website by providing the URL.  `/url https://example.com/articles/298302`"""
+        """Copy an article/website by providing the URL."""
         url = args if args else "No URL provided"
         return f"Scraping content from {url}"
 
@@ -171,8 +177,8 @@ npub1xegedgkkjf24pl4d76cdwhufacng5hapzjnrtgms3pyhlvmyqj9suym08k
 
 ####################################################################################
     @classmethod
-    def random(cls, args=None):
-        """Generate a random number. Optionally specify number of digits."""
+    def random(cls, args: str = None):
+        """Generate a random number."""
         import random
         # If no argument provided, return random number between 1-100
         if args is None:
@@ -188,7 +194,7 @@ npub1xegedgkkjf24pl4d76cdwhufacng5hapzjnrtgms3pyhlvmyqj9suym08k
 
 ####################################################################################
     @classmethod
-    def readability(cls, args=None):
+    def readability(cls, args: str = None):
         return "Not yet implemented"
 #     # TODO: I want to consider charging the user for intensive commands like this...
 #     split = request.user_message.split(" ")

@@ -45,6 +45,12 @@ def handle_command(state: State, config: RunnableConfig):
     command = split[0][1:].lower()
     arguments = split[1:]
 
+    # check if command is empty
+    if not command:
+        command = ""
+        # return {"messages": [{"role": "assistant", "content": "⚠️ Please provide a command.\n\n**Example:**\n```\n/help\n```"}]}
+    
+
     # Use CommandHandler class method directly
     response = CommandHandler._run(command, arguments)
 
