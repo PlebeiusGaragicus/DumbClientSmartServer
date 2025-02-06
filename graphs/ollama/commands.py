@@ -194,7 +194,7 @@ npub1xegedgkkjf24pl4d76cdwhufacng5hapzjnrtgms3pyhlvmyqj9suym08k
 
 ####################################################################################
     @classmethod
-    def readability(cls, args: str = None):
+    def read(cls, args: str = None):
         return "Not yet implemented"
 #     # TODO: I want to consider charging the user for intensive commands like this...
 #     split = request.user_message.split(" ")

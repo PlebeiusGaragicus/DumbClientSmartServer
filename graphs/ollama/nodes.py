@@ -62,8 +62,12 @@ def handle_command(state: State, config: RunnableConfig):
 ############################################################################
 def ollama(state: State, config: RunnableConfig):
     llm = get_llm(config)
+    configurable = Config.from_runnable_config(config)
 
-    response = llm.stream(state.messages)
+    # Add system prompt to messages
+    messages = [{"role": "system", "content": configurable.system_prompt}] + state.messages
+
+    response = llm.stream(messages)
 
     # Join all chunks into a single response
     full_response = "".join(chunk.content for chunk in response)

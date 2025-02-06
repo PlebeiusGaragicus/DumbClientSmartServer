@@ -1,7 +1,6 @@
 import os
 import operator
 from enum import Enum
-from dataclasses import fields
 from pydantic import BaseModel, Field
 from typing import Any, Optional
 from typing_extensions import Annotated
@@ -46,22 +45,30 @@ class SummaryStateOutput(BaseModel):
 # CONFIG
 ############################################################################
 
-class LLMModelsAvailable(str, Enum):
-    phi4 = "phi4"
-    llama31 = "llama3.1"
+from ..local_models import LLMModelsAvailable, DEFAULT_LOCAL_MODEL
+# class LLMModelsAvailable(str, Enum):
+#     phi4 = "phi4"
+#     llama31 = "llama3.1"
 
 
 class Configuration(BaseModel):
     """The configurable fields for the research assistant."""
 
     max_web_research_loops: int = Field(
-        2,
+        1,
         ge=1,
         le=5,
         description="Number of times to search the web"
     )
 
-    local_llm: LLMModelsAvailable = Field(LLMModelsAvailable.phi4)
+    # local_llm: LLMModelsAvailable = Field(DEFAULT_LOCAL_MODEL)
+    local_llm: LLMModelsAvailable = Field(LLMModelsAvailable.deepseekR214b)
+
+    # system_prompt: str = Field(
+    #     SYSTEM_PROMPT,
+    #     format="multi-line",
+    #     description="What do you want to research?"
+    # )
 
 
     @classmethod
@@ -77,6 +84,7 @@ class Configuration(BaseModel):
             for name in cls.model_fields.keys()
         }
         return cls(**{k: v for k, v in values.items() if v})
+
     # NOTE: keep
     # def from_runnable_config(
     #     cls, config: Optional[RunnableConfig] = None

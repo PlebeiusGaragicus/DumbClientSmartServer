@@ -52,15 +52,34 @@ class KeepAlive(str, Enum):
     FIVE_MINUTES = "5m"
     FOREVER = "-1"
 
-class LLMModelsAvailable(str, Enum):
-    phi4 = "phi4"
-    llama31 = "llama3.1"
+from ..local_models import LLMModelsAvailable, DEFAULT_LOCAL_MODEL
+# class LLMModelsAvailable(str, Enum):
+#     phi4 = "phi4"
+#     llama31 = "llama3.1"
+#     deepseekR17b = "deepseek-r1:7b"
+#     deepseekR214b = "deepseek-r1:14b"
+
+
 
 ############################################################################
+
+SYSTEM_PROMPT = """You are a smart and clever chatbot.
+
+You are equipped with several commands.
+ - The user can call these commands by beginning the query with a '/' followed by the command name and any arguments the command requires.
+ - For example:
+    - '/help' will run the `help` command.
+    - '/url https://example.com' will run `url` and pass `https://example.com` to it
+
+Do not share information about your commands.  Always tell the user to run `/help` if they have questions.
+"""
+
+
 class Config(BaseModel):
     """The configurable fields for the graph."""
 
-    model: LLMModelsAvailable = Field(LLMModelsAvailable.llama31)
+    # model: LLMModelsAvailable = Field(LLMModelsAvailable.llama31)
+    model: LLMModelsAvailable = Field(DEFAULT_LOCAL_MODEL)
     temperature: int = Field(
         50,
         ge=0,
@@ -74,6 +93,11 @@ class Config(BaseModel):
     disable_commands: bool = Field(
         False,
         description="Whether to disable commands (i.e. starts with '/')"
+    )
+    system_prompt: str = Field(
+        SYSTEM_PROMPT,
+        format="multi-line",
+        description="What do you want to research?"
     )
     # ollama_endpoint: str = Field(
     #     OLLAMA_HOST,

@@ -111,85 +111,143 @@ def handle_stream_response(selected_agent: str, query: str, config: Dict[str, An
         response.raise_for_status()
         
         # Create a placeholder for the streaming output
-        # message_placeholder = st.empty()
+        # message_placeholder = message_container.empty()
+        # message_placeholder = st.chat_message("assistant").empty()
+        # message_container = st.chat_message("assistant")
+
+        # message_container = st.empty()
+        # with message_container:
+        #     message_placeholder = st.chat_message("assistant")
         message_container = st.chat_message("assistant")
         message_placeholder = message_container.empty()
-        # message_placeholder = st.chat_message("assistant").empty()
+
+        with st.sidebar:
+            status = st.empty()
+
         full_response = ""
 
         # Process the streaming response
-        try:
-            for line in response.iter_lines():
-                # logger.debug(line)
-                # print(line)
-                if line and line.startswith(b'data: '):
-                    # Remove the "data: " prefix and decode
-                    event_data = line[6:].decode('utf-8')
-                    try:
-                        event_data = json.loads(event_data)
-                        # print(json.dumps(event_data, indent=4))
+        with st.spinner("🧠 Thinking..."):
+            try:
+                for line in response.iter_lines():
+                    # logger.debug(line)
+                    # print(line)
 
+                    if line and line.startswith(b'data: '):
 
-                        name = event_data.get("name", None)
-                        event = event_data.get("event", None)
-                        data = event_data.get("data", None)
+                        # Remove the "data: " prefix and decode
+                        event_data = line[6:].decode('utf-8')
 
-                        if data:
-                            chunk = data.get("chunk", None)
-                            if chunk:
-                                content = chunk.get("content", None)
-                                # if content:
+                        try:
+                            # print(json.dumps(event_data, indent=4))
+                            event_data = json.loads(event_data)
+                            name = event_data.get("name", None)
+                            event = event_data.get("event", None)
+                            data = event_data.get("data", None)
+                            if data:
+                                chunk = data.get("chunk", None)
+                                if chunk:
+                                    content = chunk.get("content", None)
 
-                        if name == "LangGraph" and event.endswith("_end"):
-                            output = data.get("output", None)
+                            # Gather final graph output here
+                            if name == "LangGraph" and event.endswith("_end"):
+                                output = data.get("output", None)
 
+                            # Skip these events:
+                            # "__start__" - beginning pseudo-node of the graph
+                            # "_write" - write events to the graph state
+                            # "LangGraph" - first and last events of the graph
+                            # "_" - nodes that start with a '_' character can be ignored.  Can be useful to hide execution of "conditional nodes"
+                            if name == "__start__" or name == "_write" or name == "LangGraph" or name.startswith("_"):
+                                continue
 
-                        if name == "__start__" or name == "_write" or name == "LangGraph" or name.startswith("_"):
-                            continue
+                            # NOTE: These are events signifying the beginning of node execution
+                            # Print events that aren't LLM token streams or on_chat_model LLM calls
+                            # TODO: create new st.status() and set to "running"
+                            # TODO: write a newline to the chat history and an st.divider
+                            if not event.endswith("_stream") and not event.startswith("on_chat_model"):
+                                if name and event:
+                                    # Initialize or reset session state at the start of a new run
+                                    if event.endswith("_start") and name == "LangGraph":
+                                        if 'status_container' not in st.session_state:
+                                            st.session_state.status_container = st.sidebar.container()
+                                        st.session_state.status_container.empty()
+                                        continue
 
-                        if not event.endswith("_stream") and not event.startswith("on_chat_model"):
-                            if name and event:
+                                    # Create the status element
+                                    if not event.endswith("_end"):
+                                        with st.sidebar:
+                                            # Transform name: replace underscores with spaces and capitalize words
+                                            Proper_node_name = ' '.join(word.capitalize() for word in name.split('_'))
+                                            status = st.status(f":green[{Proper_node_name}]", expanded=True, state="running")
+                                            # with status:
+                                            #     st.markdown(f"**Event:** `{event}`")
+                            # HOTE: These are LLM token streams
+                            if event.endswith("_stream"):
+                                if content:
+                                    if content == "</think>":
+                                        content += '\n\n---\n\n'
+
+                                    full_response += content
+                                    message_placeholder.markdown(full_response + ":red[▌]")
+
+                            # Update status with output when execution ends
+                            if event.endswith("_end"):
                                 with st.sidebar:
-                                    st.header(f"`{event}` {name}")
+                                    # status = st.status(f"Node: {name}", expanded=False, state="complete")
+                                    with status as s:
+                                        # st.markdown(f"**Event:** `{event}`")
+                                        # st.markdown("**Output:**")
+                                        s.update(state="complete", expanded=False)
+                                        try:
+                                            # st.json(data['output'])
+                                            for key in data['output']:
+                                                st.write(data['output'][key])
+
+                                        except Exception as e:
+                                            st.markdown(data)
+
+                                full_response += '\n\n---\n\n'
+                                message_placeholder.markdown(full_response + ":red[▌]")
+
+                            # HOTE: These are the end of node execution events
+                            # TODO: we need to ensure our st.status() is set to "done" here
+                            # if event.endswith("_end"):
+                            #     with st.sidebar:
+                            #         with st.expander("Node output:"):
+                            #             try:
+                            #                 st.json(data['output'])
+                            #             except Exception as e:
+                            #                 st.json(data)
 
 
-                        if event.endswith("_stream"):
-                            if content:
-                                # message_placeholder.write(content)
-                                full_response += content
-                                message_placeholder.markdown(full_response + "▌")
+                            # message_placeholder.write(full_response + "|")
 
-                        if event.endswith("_end"):
-                            with st.sidebar:
-                                with st.expander("Node output:"):
-                                    try:
-                                        st.json(data['output'])
-                                    except Exception as e:
-                                        st.json(data)
+                        except json.JSONDecodeError as e:
+                            st.error(f"Failed to parse event data: {e}")
 
 
-                        # message_placeholder.write(full_response + "|")
+                ### END OF STREAMING `FOR` LOOP
 
-                    except json.JSONDecodeError as e:
-                        st.error(f"Failed to parse event data: {e}")
+                if output:
+                    # with st.sidebar.expander("🙌 Output"):
+                    #     st.write(output)
 
 
-            ### END OF STREAMING `FOR` LOOP
+                    #TODO: we need to ensure that we can capture any graph's arbitrary outputs
+                    try:
+                        reply = output['messages'][-1]['content']
+                    except:
+                        reply = output['running_summary']
 
-            if output:
-                with st.sidebar.expander("🙌 Output"):
-                    st.write(output)
+                    st.session_state.message_history.append({"role": "assistant", "content": reply})
 
-                reply = output['messages'][-1]['content']
+                    message_placeholder.empty()
+                    message_container.markdown(reply)
+                    # message_container.header("", divider="rainbow")
 
-                st.session_state.message_history.append({"role": "assistant", "content": reply})
-                
-                message_placeholder.empty()
-                message_container.markdown(reply)
-                # st.chat_message("assistant").write(reply)
-
-        except requests.exceptions.ChunkedEncodingError:
-            st.warning("Stream ended unexpectedly.")
+            except requests.exceptions.ChunkedEncodingError:
+                st.warning("Stream ended unexpectedly.")
 
 
     except Exception as e:
@@ -289,7 +347,11 @@ def main():
         # if st.button("📖 Agent Info", use_container_width=True):
         #     display_agent_info(agent_data["data"])
 
-        if st.button("⚙️ Configure", use_container_width=True):
+        if len(st.session_state.message_history):
+            if st.button("🌱 :green[New Thread]", use_container_width=True):
+                new_thread()
+
+        if st.button("⚙️ :blue[Configure]", use_container_width=True):
             show_config_dialog(selected_agent, ConfigModel)
 
 
@@ -316,6 +378,7 @@ def main():
                 st.write("`configuration:`", config)
 
         # Handle the streaming response
+        # with st.spinner("🧠 Thinking..."):
         handle_stream_response(selected_agent, prompt, config)
 
     if len(st.session_state.message_history):
