@@ -62,7 +62,8 @@ class Configuration(BaseModel):
     )
 
     # local_llm: LLMModelsAvailable = Field(DEFAULT_LOCAL_MODEL)
-    local_llm: LLMModelsAvailable = Field(LLMModelsAvailable.deepseekR214b)
+    local_llm: LLMModelsAvailable = Field(LLMModelsAvailable.deepseekR17b)
+    local_llm_json: LLMModelsAvailable = Field(LLMModelsAvailable.llama31)
 
     # system_prompt: str = Field(
     #     SYSTEM_PROMPT,

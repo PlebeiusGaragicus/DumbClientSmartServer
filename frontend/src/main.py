@@ -202,6 +202,7 @@ def handle_stream_response(selected_agent: str, query: str, config: Dict[str, An
                                         try:
                                             # st.json(data['output'])
                                             for key in data['output']:
+                                                st.write(f"**{key}**")
                                                 st.write(data['output'][key])
 
                                         except Exception as e:

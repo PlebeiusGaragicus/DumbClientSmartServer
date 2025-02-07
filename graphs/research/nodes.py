@@ -20,7 +20,7 @@ def get_llm(config: RunnableConfig):
 
 def get_llm_json_mode(config: RunnableConfig):
     configurable = Configuration.from_runnable_config(config)
-    return ChatOllama(model=configurable.local_llm, temperature=0, format="json", base_url=OLLAMA_HOST)
+    return ChatOllama(model=configurable.local_llm_json, temperature=0, format="json", base_url=OLLAMA_HOST)
 
 
 
@@ -151,6 +151,7 @@ def reflect_on_summary(state: SummaryState, config: RunnableConfig):
         HumanMessage(content=f"Identify a knowledge gap and generate a follow-up web search query based on our existing knowledge: {state.running_summary}")]
     )   
     follow_up_query = json.loads(result.content)
+    #TODO: hanlde possible KeyError: 'follow_up_query'
 
     # Overwrite the search query
     return {"search_query": follow_up_query['follow_up_query']}
